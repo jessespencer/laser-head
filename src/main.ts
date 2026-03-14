@@ -92,7 +92,7 @@ function showUploadScreen() {
           border-radius: 12px;
           width: 220px;
         ">
-          <img src="/default-preview.gif" style="
+          <img src="${import.meta.env.BASE_URL}default-preview.gif" style="
             width: 140px;
             height: 140px;
             object-fit: contain;
@@ -178,7 +178,7 @@ function showUploadScreen() {
       loadedImage = img;
       showControlsScreen(() => launchGame());
     };
-    img.src = "/default-head.png";
+    img.src = `${import.meta.env.BASE_URL}default-head.png`;
   });
 
   // Upload your own — entire container is the target
