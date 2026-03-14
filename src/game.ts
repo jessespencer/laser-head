@@ -40,7 +40,7 @@ let ctx: CanvasRenderingContext2D;
 let player: Player;
 let state: GameState;
 let keys: Set<string> = new Set();
-let fireTimer = 0;
+let fireRequested = false;
 let spawnTimer = 0;
 let spawnInterval = 1200;
 let animId = 0;
@@ -73,7 +73,7 @@ export function startGame(
     frame: 0,
   };
 
-  fireTimer = 0;
+  fireRequested = false;
   spawnTimer = 0;
   spawnInterval = 1200;
 
@@ -93,7 +93,16 @@ export function startGame(
 }
 
 function onKeyDown(e: KeyboardEvent) {
+  // Prevent browser default for game keys (space scrolls page, arrow keys too)
+  if (e.key === " " || e.key.startsWith("Arrow")) {
+    e.preventDefault();
+  }
+  if (e.repeat) return;
   keys.add(e.key);
+
+  if (e.key === " " && !state.gameOver) {
+    fireRequested = true;
+  }
 
   if (state.gameOver) {
     if (e.key === "Enter") {
@@ -144,17 +153,12 @@ function loop() {
   }
   updateEnemies(state.frame);
 
-  // Fire lasers
-  if (firing) {
-    fireTimer++;
-    if (fireTimer >= FIRE_RATE) {
-      fireTimer = 0;
-      const [leftEye, rightEye] = getEyePositions(player);
-      spawnLaser(leftEye.x, leftEye.y);
-      spawnLaser(rightEye.x, rightEye.y);
-    }
-  } else {
-    fireTimer = FIRE_RATE; // fire immediately on next press
+  // Fire lasers (one shot per press)
+  if (fireRequested) {
+    fireRequested = false;
+    const [leftEye, rightEye] = getEyePositions(player);
+    spawnLaser(leftEye.x, leftEye.y);
+    spawnLaser(rightEye.x, rightEye.y);
   }
   updateLasers();
 
