@@ -1,3 +1,4 @@
+import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 
@@ -5,6 +6,44 @@ const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 
 let loadedImage: HTMLImageElement | null = null;
+
+// ── Background Removal ─────────────────────────────────────────────
+
+async function removeBackground(img: HTMLImageElement): Promise<HTMLImageElement> {
+  const blob = await imglyRemoveBackground(img.src, {
+    model: "isnet_fp16",
+    output: { format: "image/png" },
+    progress: (_key, current, total) => {
+      updateProgress(total > 0 ? current / total : 0);
+    },
+  });
+  const url = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    const result = new Image();
+    result.onload = () => resolve(result);
+    result.onerror = reject;
+    result.src = url;
+  });
+}
+
+function showLoadingState(message: string) {
+  uploadScreen.innerHTML = `
+    <p style="
+      color: #889;
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      text-align: center;
+    ">${message}</p>
+    <div id="progress-bar" style="width:280px; height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:12px">
+      <div id="progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg,#ff2020,#ff6600); transition:width 0.2s"></div>
+    </div>
+  `;
+}
+
+function updateProgress(fraction: number) {
+  const fill = document.getElementById("progress-fill");
+  if (fill) fill.style.width = `${Math.round(fraction * 100)}%`;
+}
 
 function showUploadScreen() {
   canvas.style.display = "none";
@@ -35,34 +74,84 @@ function showUploadScreen() {
         font-family: 'Courier New', monospace;
         font-size: 14px;
         margin: 0;
-      ">Upload your face. Shoot lasers from your eyes.</p>
+      ">Shoot lasers from your eyes.</p>
 
-      <div id="drop-zone" style="
-        width: 320px;
-        height: 200px;
-        border: 2px dashed #333;
-        border-radius: 12px;
+      <div style="
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: border-color 0.2s;
+        gap: 32px;
+        align-items: stretch;
       ">
-        <p style="
-          color: #667;
-          font-family: 'Courier New', monospace;
-          font-size: 16px;
-          margin: 0 0 8px 0;
-          pointer-events: none;
-        ">Drop image here</p>
-        <p style="
-          color: #445;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
-          margin: 0;
-          pointer-events: none;
-        ">or click to browse</p>
+        <!-- Left: Play with default -->
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          padding: 24px;
+          border: 2px solid #222;
+          border-radius: 12px;
+          width: 220px;
+        ">
+          <img src="/default-preview.gif" style="
+            width: 140px;
+            height: 140px;
+            object-fit: contain;
+          " />
+          <button id="play-btn" style="
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 40px;
+            background: linear-gradient(180deg, #ff2020, #cc1100);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            letter-spacing: 4px;
+            width: 100%;
+          ">PLAY</button>
+        </div>
+
+        <!-- Right: Use your own -->
+        <div id="drop-zone" style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          padding: 24px;
+          border: 2px dashed #333;
+          border-radius: 12px;
+          width: 220px;
+          cursor: pointer;
+          transition: border-color 0.2s;
+        ">
+          <p style="
+            color: #556;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 0;
+            pointer-events: none;
+            text-align: center;
+            flex: 1;
+            display: flex;
+            align-items: center;
+          ">Drop image here<br/>or click to browse</p>
+          <button id="upload-btn" style="
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 12px 24px;
+            background: transparent;
+            color: #667;
+            border: 2px solid #333;
+            border-radius: 8px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: border-color 0.2s, color 0.2s;
+            width: 100%;
+            pointer-events: none;
+          ">UPLOAD</button>
+        </div>
       </div>
 
       <input type="file" id="file-input" accept="image/*" style="display:none" />
@@ -78,11 +167,35 @@ function showUploadScreen() {
     width: 100%;
   `;
 
-  const dropZone = document.getElementById("drop-zone")!;
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
+  const uploadBtn = document.getElementById("upload-btn")!;
+  const playBtn = document.getElementById("play-btn")!;
 
-  // Click to browse
+  // Play with default head — skip straight to game
+  playBtn.addEventListener("click", () => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImage = img;
+      showControlsScreen(() => launchGame());
+    };
+    img.src = "/default-head.png";
+  });
+
+  // Upload your own — entire container is the target
+  const dropZone = document.getElementById("drop-zone")!;
   dropZone.addEventListener("click", () => fileInput.click());
+
+  // Hover state
+  dropZone.addEventListener("mouseenter", () => {
+    dropZone.style.borderColor = "#f44";
+    uploadBtn.style.borderColor = "#f44";
+    uploadBtn.style.color = "#aab";
+  });
+  dropZone.addEventListener("mouseleave", () => {
+    dropZone.style.borderColor = "#333";
+    uploadBtn.style.borderColor = "#333";
+    uploadBtn.style.color = "#667";
+  });
 
   // File input change
   fileInput.addEventListener("change", () => {
@@ -110,8 +223,15 @@ function handleFile(file: File) {
   const reader = new FileReader();
   reader.onload = () => {
     const img = new Image();
-    img.onload = () => {
-      showAlignScreen(img);
+    img.onload = async () => {
+      showLoadingState("Removing background...");
+      try {
+        const bgRemoved = await removeBackground(img);
+        showAlignScreen(bgRemoved);
+      } catch {
+        // Fall back to original image if segmentation fails
+        showAlignScreen(img);
+      }
     };
     img.src = reader.result as string;
   };
@@ -363,7 +483,7 @@ function showAlignScreen(img: HTMLImageElement) {
     const cropped = cropImage(img, offsetX, offsetY, scale);
     cropped.onload = () => {
       loadedImage = cropped;
-      launchGame();
+      showControlsScreen(() => launchGame());
     };
   });
 }
@@ -393,6 +513,82 @@ function cropImage(
   const result = new Image();
   result.src = cropCanvas.toDataURL();
   return result;
+}
+
+function showControlsScreen(onDone: () => void) {
+  canvas.style.display = "none";
+  uploadScreen.style.display = "flex";
+
+  uploadScreen.innerHTML = `
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      user-select: none;
+    ">
+      <h1 style="
+        font-family: 'Courier New', monospace;
+        font-size: 32px;
+        font-weight: bold;
+        background: linear-gradient(180deg, #ff2020, #ff6600);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: 4px;
+        margin: 0;
+      ">CONTROLS</h1>
+
+      <div style="
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        font-family: 'Courier New', monospace;
+      ">
+        <div style="display:flex; align-items:center; gap:16px">
+          <span style="color:#f44; font-size:20px; width:120px; text-align:right">WASD / Arrows</span>
+          <span style="color:#889; font-size:16px">Move</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px">
+          <span style="color:#f44; font-size:20px; width:120px; text-align:right">SPACE</span>
+          <span style="color:#889; font-size:16px">Shoot lasers</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px">
+          <span style="color:#f44; font-size:20px; width:120px; text-align:right">ESC</span>
+          <span style="color:#889; font-size:16px">Quit</span>
+        </div>
+      </div>
+
+      <p style="
+        color: #445;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        margin: 0;
+        animation: blink 1.2s step-end infinite;
+      ">Press any key to start</p>
+
+      <style>
+        @keyframes blink {
+          50% { opacity: 0; }
+        }
+      </style>
+    </div>
+  `;
+
+  uploadScreen.style.cssText = `
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+  `;
+
+  function dismiss() {
+    window.removeEventListener("keydown", dismiss);
+    uploadScreen.removeEventListener("click", dismiss);
+    onDone();
+  }
+  window.addEventListener("keydown", dismiss);
+  uploadScreen.addEventListener("click", dismiss);
 }
 
 function launchGame() {

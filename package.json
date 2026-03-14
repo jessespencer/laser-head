@@ -13,6 +13,11 @@
     "vite": "^5.4.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@imgly/background-removal": "^1.7.0"
   }
 }

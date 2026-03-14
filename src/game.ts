@@ -62,7 +62,7 @@ export function startGame(
   player = createPlayer(image);
   state = {
     score: 0,
-    lives: 3,
+    lives: 8,
     combo: 0,
     multiplier: 1,
     comboTimer: 0,
