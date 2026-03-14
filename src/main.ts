@@ -6,6 +6,7 @@ const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 
 let loadedImage: HTMLImageElement | null = null;
+let userUploadedImage: HTMLImageElement | null = null;
 
 // ── Background Removal ─────────────────────────────────────────────
 
@@ -112,6 +113,39 @@ function showUploadScreen() {
           ">PLAY</button>
         </div>
 
+        ${userUploadedImage ? `
+        <!-- Middle: Play with uploaded head -->
+        <div id="uploaded-zone" style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          padding: 24px;
+          border: 2px solid #222;
+          border-radius: 12px;
+          width: 220px;
+        ">
+          <img src="${userUploadedImage.src}" style="
+            width: 140px;
+            height: 140px;
+            object-fit: contain;
+          " />
+          <button id="play-uploaded-btn" style="
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px 40px;
+            background: linear-gradient(180deg, #ff2020, #cc1100);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            letter-spacing: 4px;
+            width: 100%;
+          ">PLAY</button>
+        </div>
+        ` : ''}
+
         <!-- Right: Use your own -->
         <div id="drop-zone" style="
           display: flex;
@@ -171,7 +205,7 @@ function showUploadScreen() {
   const uploadBtn = document.getElementById("upload-btn")!;
   const playBtn = document.getElementById("play-btn")!;
 
-  // Play with default head — skip straight to game
+  // Play with default head
   playBtn.addEventListener("click", () => {
     const img = new Image();
     img.onload = () => {
@@ -180,6 +214,15 @@ function showUploadScreen() {
     };
     img.src = `${import.meta.env.BASE_URL}default-head.png`;
   });
+
+  // Play with previously uploaded head
+  const playUploadedBtn = document.getElementById("play-uploaded-btn");
+  if (playUploadedBtn) {
+    playUploadedBtn.addEventListener("click", () => {
+      loadedImage = userUploadedImage;
+      showControlsScreen(() => launchGame());
+    });
+  }
 
   // Upload your own — entire container is the target
   const dropZone = document.getElementById("drop-zone")!;
@@ -483,6 +526,7 @@ function showAlignScreen(img: HTMLImageElement) {
     const cropped = cropImage(img, offsetX, offsetY, scale);
     cropped.onload = () => {
       loadedImage = cropped;
+      userUploadedImage = cropped;
       showControlsScreen(() => launchGame());
     };
   });
