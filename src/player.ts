@@ -99,9 +99,9 @@ export function drawPlayer(player: Player, ctx: CanvasRenderingContext2D) {
 export function getEyePositions(
   player: Player
 ): [{ x: number; y: number }, { x: number; y: number }] {
-  const eyeY = player.y - player.height * 0.1;
+  const eyeY = player.y; // eyes at center of cropped/aligned image
   return [
-    { x: player.x - player.width * 0.1, y: eyeY }, // left eye
-    { x: player.x + player.width * 0.18, y: eyeY }, // right eye
+    { x: player.x - player.width * 0.08, y: eyeY }, // left eye
+    { x: player.x + player.width * 0.08, y: eyeY }, // right eye
   ];
 }
