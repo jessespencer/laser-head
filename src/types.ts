@@ -61,6 +61,7 @@ export interface EnemyTypeDef {
   glowColor: string;
   points: number;
   speed: number;
+  image: string;
 }
 
 export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
@@ -72,6 +73,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#0a0",
     points: 100,
     speed: 2.5,
+    image: "/laser-head/figma.svg",
   },
   drone: {
     type: "drone",
@@ -81,6 +83,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#aa0",
     points: 250,
     speed: 1.8,
+    image: "/laser-head/sketch.svg",
   },
   tank: {
     type: "tank",
@@ -90,6 +93,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#a0a",
     points: 500,
     speed: 1.2,
+    image: "/laser-head/photoshop.svg",
   },
 };
 
