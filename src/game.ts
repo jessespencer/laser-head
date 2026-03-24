@@ -38,6 +38,7 @@ import {
   detonateBomb,
 } from "./enemies";
 import { drawHUD } from "./hud";
+import { drawPixelText, getPixelTextWidth, getPixelTextHeight } from "./pixelfont";
 import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
 import type { Player } from "./types";
 import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
@@ -389,33 +390,35 @@ function loop() {
 
 function drawGameOver() {
   // Dim overlay
-  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  ctx.save();
-  ctx.textAlign = "center";
+  const goW = getPixelTextWidth("GAME OVER");
+  const goH = getPixelTextHeight();
+  const scoreH = 24;
+  const instrH = 16;
+  const gap1 = 32; // between title and score
+  const gap2 = 24; // between score and instructions
+  const totalH = goH + gap1 + scoreH + gap2 + instrH;
+  const topY = (CANVAS_H - totalH) / 2;
 
-  // GAME OVER
-  ctx.font = "bold 48px 'Space Mono', monospace";
-  ctx.fillStyle = "#f22";
-  ctx.shadowColor = "#f00";
-  ctx.shadowBlur = 20;
-  ctx.fillText("GAME OVER", CANVAS_W / 2, CANVAS_H / 2 - 40);
+  // GAME OVER — pixel art title
+  drawPixelText(ctx, "GAME OVER", (CANVAS_W - goW) / 2, topY);
 
   // Final score
-  ctx.font = "bold 24px 'Space Mono', monospace";
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = "bold 24px 'Roboto Mono', monospace";
   ctx.fillStyle = "#fff";
-  ctx.shadowBlur = 0;
   ctx.fillText(
     `FINAL SCORE: ${state.score.toString().padStart(8, "0")}`,
     CANVAS_W / 2,
-    CANVAS_H / 2 + 10
+    topY + goH + gap1 + scoreH
   );
 
   // Instructions
-  ctx.font = "16px 'Space Mono', monospace";
+  ctx.font = "16px 'Roboto Mono', monospace";
   ctx.fillStyle = "#888";
-  ctx.fillText("ENTER to restart  |  ESC for upload screen", CANVAS_W / 2, CANVAS_H / 2 + 50);
-
+  ctx.fillText("ENTER to restart  |  ESC for upload screen", CANVAS_W / 2, topY + goH + gap1 + scoreH + gap2 + instrH);
   ctx.restore();
 }
