@@ -216,15 +216,16 @@ function showUploadScreen() {
   defaultZone.addEventListener("mouseenter", () => { defaultZone.style.borderColor = "#f22"; });
   defaultZone.addEventListener("mouseleave", () => { defaultZone.style.borderColor = "#222"; });
 
-  // Play with default head
-  playBtn.addEventListener("click", () => {
+  // Play with default head — entire container is clickable
+  const playDefault = () => {
     const img = new Image();
     img.onload = () => {
       loadedImage = img;
       showControlsScreen(() => launchGame());
     };
     img.src = `${import.meta.env.BASE_URL}default-head.png`;
-  });
+  };
+  defaultZone.addEventListener("click", playDefault);
 
   // Play with previously uploaded head
   const playUploadedBtn = document.getElementById("play-uploaded-btn");
@@ -312,16 +313,7 @@ function showAlignScreen(img: HTMLImageElement) {
       gap: 20px;
       user-select: none;
     ">
-      <h1 style="
-        font-family: 'Roboto Mono', monospace;
-        font-size: 36px;
-        font-weight: bold;
-        background: linear-gradient(180deg, #ff2020, #ff6600);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: 4px;
-        margin: 0;
-      ">ALIGN FACE</h1>
+      <div id="pixel-align-title" style="margin: 0;"></div>
 
       <p style="
         color: #556;
@@ -341,7 +333,7 @@ function showAlignScreen(img: HTMLImageElement) {
         width: ${PREVIEW_SIZE}px;
         height: ${PREVIEW_SIZE}px;
         border: 2px solid #ff4422;
-        border-radius: 8px;
+        border-radius: 12px;
         cursor: grab;
         background: #111;
         display: block;
@@ -371,6 +363,12 @@ function showAlignScreen(img: HTMLImageElement) {
     min-height: 100vh;
     width: 100%;
   `;
+
+  // Render pixel art title for align screen
+  const alignTitleContainer = document.getElementById("pixel-align-title")!;
+  const alignTitleCanvas = renderPixelTitle("ALIGN FACE");
+  alignTitleCanvas.style.imageRendering = "pixelated";
+  alignTitleContainer.appendChild(alignTitleCanvas);
 
   const alignCanvas = document.getElementById("align-canvas") as HTMLCanvasElement;
   const alignCtx = alignCanvas.getContext("2d")!;
@@ -623,7 +621,7 @@ function showControlsScreen(onDone: () => void) {
       <div id="pixel-controls-title" style="margin: 0;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 24px; align-items: center;">
-        <!-- WASD cluster -->
+        <!-- Arrows cluster -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <p style="${labelStyle}">Move</p>
           <div style="
@@ -637,12 +635,12 @@ function showControlsScreen(onDone: () => void) {
             box-shadow: 0 2px 12px rgba(0,0,0,0.4);
           ">
             <div style="display: flex; gap: 6px; justify-content: center;">
-              <div style="${keyStyle}">W</div>
+              <div style="${keyStyle}">&#9650;</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <div style="${keyStyle}">A</div>
-              <div style="${keyStyle}">S</div>
-              <div style="${keyStyle}">D</div>
+              <div style="${keyStyle}">&#9664;</div>
+              <div style="${keyStyle}">&#9660;</div>
+              <div style="${keyStyle}">&#9654;</div>
             </div>
           </div>
         </div>
