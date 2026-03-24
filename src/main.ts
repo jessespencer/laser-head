@@ -1,6 +1,7 @@
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
+import { renderPixelTitle } from "./pixelfont";
 
 const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -29,14 +30,17 @@ async function removeBackground(img: HTMLImageElement): Promise<HTMLImageElement
 
 function showLoadingState(message: string) {
   uploadScreen.innerHTML = `
-    <p style="
-      color: #889;
-      font-family: 'Space Mono', monospace;
-      font-size: 18px;
-      text-align: center;
-    ">${message}</p>
-    <div id="progress-bar" style="width:280px; height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:12px">
-      <div id="progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg,#ff2020,#ff6600); transition:width 0.2s"></div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <p style="
+        color: #889;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 18px;
+        text-align: center;
+        margin: 0;
+      ">${message}</p>
+      <div id="progress-bar" style="width:280px; height:6px; background:#222; border-radius:3px; overflow:hidden">
+        <div id="progress-fill" style="width:0%; height:100%; background:linear-gradient(90deg,#ff2020,#ff6600); transition:width 0.2s"></div>
+      </div>
     </div>
   `;
 }
@@ -58,21 +62,11 @@ function showUploadScreen() {
       gap: 24px;
       user-select: none;
     ">
-      <h1 style="
-        font-family: 'Space Mono', monospace;
-        font-size: 56px;
-        font-weight: bold;
-        background: linear-gradient(180deg, #ff2020, #ff6600);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: none;
-        letter-spacing: 8px;
-        margin: 0;
-      ">LASER HEAD</h1>
+      <div id="pixel-title" style="margin: 0;"></div>
 
       <p style="
         color: #556;
-        font-family: 'Space Mono', monospace;
+        font-family: 'Roboto Mono', monospace;
         font-size: 14px;
         margin: 0;
       ">Shoot lasers from your eyes.</p>
@@ -83,7 +77,7 @@ function showUploadScreen() {
         align-items: stretch;
       ">
         <!-- Left: Play with default -->
-        <div style="
+        <div id="default-zone" style="
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -92,6 +86,8 @@ function showUploadScreen() {
           border: 2px solid #222;
           border-radius: 12px;
           width: 220px;
+          cursor: pointer;
+          transition: border-color 0.2s;
         ">
           <img src="${import.meta.env.BASE_URL}default-preview.gif" style="
             width: 140px;
@@ -99,17 +95,19 @@ function showUploadScreen() {
             object-fit: contain;
           " />
           <button id="play-btn" style="
-            font-family: 'Space Mono', monospace;
-            font-size: 18px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 16px;
             font-weight: bold;
             padding: 12px 40px;
-            background: linear-gradient(180deg, #ff2020, #cc1100);
+            background: linear-gradient(180deg, #ff3a3a, #cc1100);
             color: #fff;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             letter-spacing: 4px;
             width: 100%;
+            box-shadow: 0 4px 0 #8a0a00, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+            transition: transform 0.05s, box-shadow 0.05s;
           ">PLAY</button>
         </div>
 
@@ -131,17 +129,19 @@ function showUploadScreen() {
             object-fit: contain;
           " />
           <button id="play-uploaded-btn" style="
-            font-family: 'Space Mono', monospace;
-            font-size: 18px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 16px;
             font-weight: bold;
             padding: 12px 40px;
-            background: linear-gradient(180deg, #ff2020, #cc1100);
+            background: linear-gradient(180deg, #ff3a3a, #cc1100);
             color: #fff;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             letter-spacing: 4px;
             width: 100%;
+            box-shadow: 0 4px 0 #8a0a00, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+            transition: transform 0.05s, box-shadow 0.05s;
           ">PLAY</button>
         </div>
         ` : ''}
@@ -161,7 +161,7 @@ function showUploadScreen() {
         ">
           <p style="
             color: #556;
-            font-family: 'Space Mono', monospace;
+            font-family: 'Roboto Mono', monospace;
             font-size: 12px;
             margin: 0;
             pointer-events: none;
@@ -171,19 +171,20 @@ function showUploadScreen() {
             align-items: center;
           ">Drop image here<br/>or click to browse</p>
           <button id="upload-btn" style="
-            font-family: 'Space Mono', monospace;
+            font-family: 'Roboto Mono', monospace;
             font-size: 14px;
             font-weight: bold;
             padding: 12px 24px;
-            background: transparent;
+            background: linear-gradient(180deg, #f0ece4, #d8d4cc);
             color: #667;
-            border: 2px solid #333;
+            border: none;
             border-radius: 8px;
             cursor: pointer;
             letter-spacing: 2px;
-            transition: border-color 0.2s, color 0.2s;
             width: 100%;
             pointer-events: none;
+            box-shadow: 0 4px 0 #a8a49c, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+            transition: transform 0.05s, box-shadow 0.05s, color 0.2s;
           ">UPLOAD</button>
         </div>
       </div>
@@ -201,9 +202,19 @@ function showUploadScreen() {
     width: 100%;
   `;
 
+  // Render pixel art title
+  const titleContainer = document.getElementById("pixel-title")!;
+  const titleCanvas = renderPixelTitle("LASER HEAD");
+  titleCanvas.style.imageRendering = "pixelated";
+  titleContainer.appendChild(titleCanvas);
+
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
   const uploadBtn = document.getElementById("upload-btn")!;
   const playBtn = document.getElementById("play-btn")!;
+  const defaultZone = document.getElementById("default-zone")!;
+
+  defaultZone.addEventListener("mouseenter", () => { defaultZone.style.borderColor = "#f22"; });
+  defaultZone.addEventListener("mouseleave", () => { defaultZone.style.borderColor = "#222"; });
 
   // Play with default head
   playBtn.addEventListener("click", () => {
@@ -231,12 +242,10 @@ function showUploadScreen() {
   // Hover state
   dropZone.addEventListener("mouseenter", () => {
     dropZone.style.borderColor = "#f44";
-    uploadBtn.style.borderColor = "#f44";
-    uploadBtn.style.color = "#aab";
+    uploadBtn.style.color = "#000";
   });
   dropZone.addEventListener("mouseleave", () => {
     dropZone.style.borderColor = "#333";
-    uploadBtn.style.borderColor = "#333";
     uploadBtn.style.color = "#667";
   });
 
@@ -304,7 +313,7 @@ function showAlignScreen(img: HTMLImageElement) {
       user-select: none;
     ">
       <h1 style="
-        font-family: 'Space Mono', monospace;
+        font-family: 'Roboto Mono', monospace;
         font-size: 36px;
         font-weight: bold;
         background: linear-gradient(180deg, #ff2020, #ff6600);
@@ -315,15 +324,15 @@ function showAlignScreen(img: HTMLImageElement) {
       ">ALIGN FACE</h1>
 
       <p style="
-        color: #889;
-        font-family: 'Space Mono', monospace;
-        font-size: 13px;
+        color: #556;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 14px;
         margin: 0;
       ">Align your eyes with the red zone</p>
 
       <p style="
         color: #556;
-        font-family: 'Space Mono', monospace;
+        font-family: 'Roboto Mono', monospace;
         font-size: 11px;
         margin: 0;
       ">Drag to pan · Scroll to zoom</p>
@@ -339,7 +348,7 @@ function showAlignScreen(img: HTMLImageElement) {
       "></canvas>
 
       <button id="lock-in-btn" style="
-        font-family: 'Space Mono', monospace;
+        font-family: 'Roboto Mono', monospace;
         font-size: 18px;
         font-weight: bold;
         padding: 12px 48px;
@@ -349,6 +358,8 @@ function showAlignScreen(img: HTMLImageElement) {
         border-radius: 8px;
         cursor: pointer;
         letter-spacing: 4px;
+        box-shadow: 0 4px 0 #8a0a00, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+        transition: transform 0.05s, box-shadow 0.05s;
       ">LOCK IN</button>
     </div>
   `;
@@ -563,48 +574,111 @@ function showControlsScreen(onDone: () => void) {
   canvas.style.display = "none";
   uploadScreen.style.display = "flex";
 
+  const keyStyle = `
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    color: #1a1a2e;
+    background: linear-gradient(180deg, #f0ece4, #d8d4cc);
+    border-radius: 8px;
+    box-shadow: 0 4px 0 #a8a49c, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+  `;
+  const accentKeyStyle = `
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    color: #fff;
+    background: linear-gradient(180deg, #ff3a3a, #cc1100);
+    border-radius: 8px;
+    box-shadow: 0 4px 0 #8a0a00, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+  `;
+  const labelStyle = `
+    color: #667;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    margin: 0;
+    text-align: center;
+  `;
+
   uploadScreen.innerHTML = `
     <div style="
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 36px;
       user-select: none;
     ">
-      <h1 style="
-        font-family: 'Space Mono', monospace;
-        font-size: 32px;
-        font-weight: bold;
-        background: linear-gradient(180deg, #ff2020, #ff6600);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: 4px;
-        margin: 0;
-      ">CONTROLS</h1>
+      <div id="pixel-controls-title" style="margin: 0;"></div>
 
-      <div style="
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        font-family: 'Space Mono', monospace;
-      ">
-        <div style="display:flex; align-items:center; gap:16px">
-          <span style="color:#f44; font-size:20px; width:120px; text-align:right">WASD / Arrows</span>
-          <span style="color:#889; font-size:16px">Move</span>
+      <div style="display: flex; flex-direction: column; gap: 24px; align-items: center;">
+        <!-- WASD cluster -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <p style="${labelStyle}">Move</p>
+          <div style="
+            background: #1a1a2e;
+            border-radius: 14px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+          ">
+            <div style="display: flex; gap: 6px; justify-content: center;">
+              <div style="${keyStyle}">W</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <div style="${keyStyle}">A</div>
+              <div style="${keyStyle}">S</div>
+              <div style="${keyStyle}">D</div>
+            </div>
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:16px">
-          <span style="color:#f44; font-size:20px; width:120px; text-align:right">SPACE</span>
-          <span style="color:#889; font-size:16px">Shoot lasers</span>
+
+        <!-- Spacebar -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <p style="${labelStyle}">Shoot</p>
+          <div style="
+            background: #1a1a2e;
+            border-radius: 14px;
+            padding: 10px;
+            display: inline-flex;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+          ">
+            <div style="${accentKeyStyle} width: 180px;">SPACE</div>
+          </div>
         </div>
-        <div style="display:flex; align-items:center; gap:16px">
-          <span style="color:#f44; font-size:20px; width:120px; text-align:right">ESC</span>
-          <span style="color:#889; font-size:16px">Quit</span>
+
+        <!-- ESC -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <p style="${labelStyle}">Quit</p>
+          <div style="
+            background: #1a1a2e;
+            border-radius: 14px;
+            padding: 10px;
+            display: inline-flex;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+          ">
+            <div style="${keyStyle} font-size: 11px;">ESC</div>
+          </div>
         </div>
       </div>
 
       <p style="
         color: #445;
-        font-family: 'Space Mono', monospace;
+        font-family: 'Roboto Mono', monospace;
         font-size: 14px;
         margin: 0;
         animation: blink 1.2s step-end infinite;
@@ -617,6 +691,12 @@ function showControlsScreen(onDone: () => void) {
       </style>
     </div>
   `;
+
+  // Pixel art title for controls screen
+  const ctrlTitle = document.getElementById("pixel-controls-title")!;
+  const ctrlCanvas = renderPixelTitle("CONTROLS");
+  ctrlCanvas.style.imageRendering = "pixelated";
+  ctrlTitle.appendChild(ctrlCanvas);
 
   uploadScreen.style.cssText = `
     display: flex;
