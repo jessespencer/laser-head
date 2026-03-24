@@ -17,6 +17,23 @@ export const MAX_MULTIPLIER = 8;
 // Difficulty
 export const DIFFICULTY_INTERVAL = 2000; // points
 
+// Ultra laser power-up
+export const ULTRA_DURATION = 600; // frames (~10 seconds)
+export const ULTRA_FIRE_RATE = 2; // frames between shots in ultra mode
+export const BOMB_DETONATE_FRAMES = 18;
+export const BOMB_BLAST_RADIUS = 280;        // massive blast
+export const BOMB_SPAWN_CHANCE = 0.04;       // ~1 in 25, much rarer
+export const BOMB_SINE_AMPLITUDE = 4;        // gentle hover bob
+export const BOMB_KILL_BONUS = 150;
+export const BOMB_EYE_BLINK_CYCLE = 240;
+export const BOMB_EYE_BLINK_DURATION = 6;
+export const BOMB_LIFETIME = 300;            // ~5 seconds then disappears
+export const BOMB_DROP_SPEED = 3;            // speed while dropping into position
+
+export const POWERUP_MIN_DIFFICULTY = 3;
+export const POWERUP_COOLDOWN = 1800; // frames (~30 seconds)
+export const POWERUP_CHANCE = 0.0015; // per frame when eligible
+
 // Colors
 export const BG_COLOR = "#05060f";
 export const LASER_CORE = "rgba(255,200,180,0.95)";
@@ -34,6 +51,7 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   frame: number;
+  ultraTimer: number;
 }
 
 export interface Player {
@@ -51,7 +69,7 @@ export interface Laser {
   y: number;
 }
 
-export type EnemyType = "scout" | "drone" | "tank";
+export type EnemyType = "scout" | "drone" | "tank" | "bomb";
 
 export interface EnemyTypeDef {
   type: EnemyType;
@@ -95,6 +113,16 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     speed: 1.2,
     image: "/laser-head/photoshop.svg",
   },
+  bomb: {
+    type: "bomb",
+    size: 54,
+    hp: 1,
+    color: "#f44",
+    glowColor: "#a00",
+    points: 750,
+    speed: 1.5,
+    image: "/laser-head/bomb-robot.svg",
+  },
 };
 
 export interface Enemy {
@@ -107,6 +135,17 @@ export interface Enemy {
   sineOffset: number;
   speed: number;
   size: number;
+  detonateTimer?: number;
+  bombLifetime?: number;   // counts down; bomb disappears at 0
+  bombTargetY?: number;    // Y position to drop to; undefined = already hovering
+}
+
+export interface PowerUp {
+  x: number;
+  y: number;
+  size: number;
+  sineOffset: number;
+  speed: number;
 }
 
 export interface Particle {

@@ -115,21 +115,117 @@ export function clearParticles() {
   particles = [];
 }
 
+export function spawnBombExplosion(x: number, y: number) {
+  const colors = ["#f44", "#f80", "#ff0", "#fa0", "#f22", "#ff4", "#fff"];
+  // Outer ring — fast, wide spread
+  for (let i = 0; i < 40; i++) {
+    const angle = (Math.PI * 2 * i) / 40 + (Math.random() - 0.5) * 0.2;
+    const speed = 5 + Math.random() * 8;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      color: colors[i % colors.length],
+      size: 5 + Math.random() * 8,
+    });
+  }
+  // Mid ring — medium speed
+  for (let i = 0; i < 20; i++) {
+    const angle = (Math.PI * 2 * i) / 20 + 0.1;
+    const speed = 2 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      color: "#fff",
+      size: 6 + Math.random() * 6,
+    });
+  }
+  // Inner cluster — slow, big, bright
+  for (let i = 0; i < 10; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 2;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 8 + Math.random() * 10,
+    });
+  }
+  // Massive central flash
+  particles.push({ x, y, vx: 0, vy: 0, alpha: 1, color: "#fff", size: 60 });
+}
+
+// --- Blast Rings ---
+
+interface BlastRing {
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  alpha: number;
+}
+
+let blastRings: BlastRing[] = [];
+
+export function spawnBlastRing(x: number, y: number, maxRadius: number) {
+  blastRings.push({ x, y, radius: 10, maxRadius, alpha: 1 });
+}
+
+export function updateBlastRings() {
+  for (let i = blastRings.length - 1; i >= 0; i--) {
+    const r = blastRings[i];
+    const expandSpeed = r.maxRadius / 20;
+    r.radius += expandSpeed;
+    r.alpha = Math.max(0, 1 - r.radius / r.maxRadius);
+    if (r.alpha <= 0) {
+      blastRings.splice(i, 1);
+    }
+  }
+}
+
+export function drawBlastRings(ctx: CanvasRenderingContext2D) {
+  for (const r of blastRings) {
+    const progress = r.radius / r.maxRadius;
+    ctx.save();
+    ctx.globalAlpha = r.alpha;
+    ctx.strokeStyle = `rgb(255, ${Math.floor(100 + 155 * (1 - progress))}, 0)`;
+    ctx.lineWidth = 4 * (1 - progress) + 1;
+    ctx.shadowColor = "rgba(255, 60, 0, 0.8)";
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+export function clearBlastRings() {
+  blastRings = [];
+}
+
 // --- Screen Shake ---
 
 let shakeFrames = 0;
+let shakeDuration = 15;
 let shakeX = 0;
 let shakeY = 0;
 
 export function triggerShake(frames = 15) {
   shakeFrames = frames;
+  shakeDuration = frames;
 }
 
 export function updateShake() {
   if (shakeFrames > 0) {
-    const intensity = shakeFrames / 15;
-    shakeX = (Math.random() - 0.5) * 10 * intensity;
-    shakeY = (Math.random() - 0.5) * 10 * intensity;
+    const intensity = shakeFrames / shakeDuration;
+    shakeX = (Math.random() - 0.5) * 14 * intensity;
+    shakeY = (Math.random() - 0.5) * 14 * intensity;
     shakeFrames--;
   } else {
     shakeX = 0;

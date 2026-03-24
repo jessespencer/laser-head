@@ -31,7 +31,7 @@ function showLoadingState(message: string) {
   uploadScreen.innerHTML = `
     <p style="
       color: #889;
-      font-family: 'Courier New', monospace;
+      font-family: 'Space Mono', monospace;
       font-size: 18px;
       text-align: center;
     ">${message}</p>
@@ -59,7 +59,7 @@ function showUploadScreen() {
       user-select: none;
     ">
       <h1 style="
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 56px;
         font-weight: bold;
         background: linear-gradient(180deg, #ff2020, #ff6600);
@@ -72,7 +72,7 @@ function showUploadScreen() {
 
       <p style="
         color: #556;
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 14px;
         margin: 0;
       ">Shoot lasers from your eyes.</p>
@@ -99,7 +99,7 @@ function showUploadScreen() {
             object-fit: contain;
           " />
           <button id="play-btn" style="
-            font-family: 'Courier New', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: 18px;
             font-weight: bold;
             padding: 12px 40px;
@@ -131,7 +131,7 @@ function showUploadScreen() {
             object-fit: contain;
           " />
           <button id="play-uploaded-btn" style="
-            font-family: 'Courier New', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: 18px;
             font-weight: bold;
             padding: 12px 40px;
@@ -161,7 +161,7 @@ function showUploadScreen() {
         ">
           <p style="
             color: #556;
-            font-family: 'Courier New', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: 12px;
             margin: 0;
             pointer-events: none;
@@ -171,7 +171,7 @@ function showUploadScreen() {
             align-items: center;
           ">Drop image here<br/>or click to browse</p>
           <button id="upload-btn" style="
-            font-family: 'Courier New', monospace;
+            font-family: 'Space Mono', monospace;
             font-size: 14px;
             font-weight: bold;
             padding: 12px 24px;
@@ -304,7 +304,7 @@ function showAlignScreen(img: HTMLImageElement) {
       user-select: none;
     ">
       <h1 style="
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 36px;
         font-weight: bold;
         background: linear-gradient(180deg, #ff2020, #ff6600);
@@ -316,14 +316,14 @@ function showAlignScreen(img: HTMLImageElement) {
 
       <p style="
         color: #889;
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 13px;
         margin: 0;
       ">Align your eyes with the red zone</p>
 
       <p style="
         color: #556;
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 11px;
         margin: 0;
       ">Drag to pan · Scroll to zoom</p>
@@ -339,7 +339,7 @@ function showAlignScreen(img: HTMLImageElement) {
       "></canvas>
 
       <button id="lock-in-btn" style="
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 18px;
         font-weight: bold;
         padding: 12px 48px;
@@ -572,7 +572,7 @@ function showControlsScreen(onDone: () => void) {
       user-select: none;
     ">
       <h1 style="
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 32px;
         font-weight: bold;
         background: linear-gradient(180deg, #ff2020, #ff6600);
@@ -586,7 +586,7 @@ function showControlsScreen(onDone: () => void) {
         display: flex;
         flex-direction: column;
         gap: 16px;
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
       ">
         <div style="display:flex; align-items:center; gap:16px">
           <span style="color:#f44; font-size:20px; width:120px; text-align:right">WASD / Arrows</span>
@@ -604,7 +604,7 @@ function showControlsScreen(onDone: () => void) {
 
       <p style="
         color: #445;
-        font-family: 'Courier New', monospace;
+        font-family: 'Space Mono', monospace;
         font-size: 14px;
         margin: 0;
         animation: blink 1.2s step-end infinite;
