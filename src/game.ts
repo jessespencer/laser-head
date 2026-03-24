@@ -14,15 +14,20 @@ import {
   drawStarfield,
   drawCRT,
   spawnExplosion,
+  spawnBombExplosion,
+  spawnBlastRing,
   updateParticles,
   drawParticles,
   clearParticles,
+  updateBlastRings,
+  drawBlastRings,
+  clearBlastRings,
   triggerShake,
   updateShake,
   getShakeOffset,
 } from "./effects";
 import { createPlayer, updatePlayer, drawPlayer, getEyePositions } from "./player";
-import { spawnLaser, updateLasers, drawLasers, getLasers, clearLasers } from "./laser";
+import { spawnLaser, updateLasers, drawLasers, getLasers, clearLasers, spawnUltraLaser, updateUltraLasers, drawUltraLasers, getUltraLasers, clearUltraLasers } from "./laser";
 import {
   spawnEnemy,
   updateEnemies,
@@ -30,9 +35,12 @@ import {
   getEnemies,
   removeEnemy,
   clearEnemies,
+  detonateBomb,
 } from "./enemies";
 import { drawHUD } from "./hud";
+import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
 import type { Player } from "./types";
+import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
@@ -70,6 +78,7 @@ export function startGame(
     gameOver: false,
     paused: false,
     frame: 0,
+    ultraTimer: 0,
   };
 
   fireRequested = false;
@@ -77,8 +86,11 @@ export function startGame(
   spawnInterval = 1200;
 
   clearLasers();
+  clearUltraLasers();
   clearEnemies();
   clearParticles();
+  clearBlastRings();
+  clearPowerUp();
   initStarfield();
 
   // Input
@@ -152,14 +164,31 @@ function loop() {
   }
   updateEnemies(state.frame);
 
-  // Fire lasers (one shot per press)
-  if (fireRequested) {
+  // Power-up
+  trySpawnPowerUp(state.difficulty);
+  updatePowerUp(state.frame);
+  if (checkPowerUpCollision(player)) {
+    state.ultraTimer = ULTRA_DURATION;
+  }
+  if (state.ultraTimer > 0) {
+    state.ultraTimer--;
+    player.firing = true;
+  }
+
+  // Fire lasers — normal: one shot per press; ultra: hold space for rapid stream
+  if (state.ultraTimer > 0 && firing && state.frame % ULTRA_FIRE_RATE === 0) {
+    fireRequested = false;
+    const [leftEye, rightEye] = getEyePositions(player);
+    spawnUltraLaser(leftEye.x, leftEye.y);
+    spawnUltraLaser(rightEye.x, rightEye.y);
+  } else if (fireRequested) {
     fireRequested = false;
     const [leftEye, rightEye] = getEyePositions(player);
     spawnLaser(leftEye.x, leftEye.y);
     spawnLaser(rightEye.x, rightEye.y);
   }
   updateLasers();
+  updateUltraLasers();
 
   // Combo timer
   if (state.comboTimer > 0) {
@@ -187,6 +216,15 @@ function loop() {
       ) {
         // Hit!
         lasers.splice(li, 1);
+
+        // Bombs trigger detonation instead of taking damage
+        if (e.type === "bomb") {
+          if (e.detonateTimer === undefined) {
+            detonateBomb(ei);
+          }
+          break;
+        }
+
         e.hp--;
         e.flashFrames = 4;
 
@@ -212,11 +250,93 @@ function loop() {
     }
   }
 
+  // Collisions: ultra lasers vs enemies
+  const uLasers = getUltraLasers();
+  for (let li = uLasers.length - 1; li >= 0; li--) {
+    const l = uLasers[li];
+    for (let ei = enemies.length - 1; ei >= 0; ei--) {
+      const e = enemies[ei];
+      const halfSize = e.size * 0.5;
+      if (
+        l.x > e.x - halfSize &&
+        l.x < e.x + halfSize &&
+        l.y > e.y - halfSize * 1.2 &&
+        l.y < e.y + halfSize * 1.2
+      ) {
+        uLasers.splice(li, 1);
+
+        if (e.type === "bomb") {
+          if (e.detonateTimer === undefined) {
+            detonateBomb(ei);
+          }
+          break;
+        }
+
+        e.hp--;
+        e.flashFrames = 4;
+
+        if (e.hp <= 0) {
+          const def = ENEMY_TYPES[e.type];
+          spawnExplosion(e.x, e.y, def.color);
+          state.combo++;
+          state.comboTimer = COMBO_WINDOW;
+          state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
+          state.score += def.points * state.multiplier;
+          state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
+          spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+          removeEnemy(ei);
+        }
+        break;
+      }
+    }
+  }
+
+  // Bomb detonation resolution
+  for (let ei = enemies.length - 1; ei >= 0; ei--) {
+    const e = enemies[ei];
+    if (e.type === "bomb" && e.detonateTimer !== undefined && e.detonateTimer <= 0) {
+      // Blast radius kills nearby enemies
+      let blastKills = 0;
+      for (let oi = enemies.length - 1; oi >= 0; oi--) {
+        if (oi === ei) continue;
+        const other = enemies[oi];
+        const dx = other.x - e.x;
+        const dy = other.y - e.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < BOMB_BLAST_RADIUS) {
+          const oDef = ENEMY_TYPES[other.type];
+          spawnExplosion(other.x, other.y, oDef.color);
+          blastKills++;
+          removeEnemy(oi);
+          if (oi < ei) ei--;
+        }
+      }
+
+      // Score
+      const bombDef = ENEMY_TYPES["bomb"];
+      state.combo++;
+      state.comboTimer = COMBO_WINDOW;
+      state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
+      state.score += (bombDef.points + blastKills * BOMB_KILL_BONUS) * state.multiplier;
+      state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
+      spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+
+      // Effects — big blast
+      spawnBombExplosion(e.x, e.y);
+      spawnBlastRing(e.x, e.y, BOMB_BLAST_RADIUS);
+      triggerShake(35);
+
+      removeEnemy(ei);
+    }
+  }
+
   // Collisions: enemies vs player
   const pw = player.width * 0.4;
   const ph = player.height * 0.4;
   for (let ei = enemies.length - 1; ei >= 0; ei--) {
     const e = enemies[ei];
+    // Detonating bombs don't deal contact damage
+    if (e.type === "bomb" && e.detonateTimer !== undefined) continue;
     const halfSize = e.size * 0.4;
     if (
       player.x - pw < e.x + halfSize &&
@@ -240,6 +360,7 @@ function loop() {
   }
 
   updateParticles();
+  updateBlastRings();
   updateShake();
 
   // --- Render ---
@@ -254,8 +375,11 @@ function loop() {
   drawStarfield(ctx);
   drawPlayer(player, ctx);
   drawLasers(ctx);
-  drawEnemies(ctx);
+  drawUltraLasers(ctx);
+  drawEnemies(ctx, state.frame);
+  drawPowerUp(ctx, state.frame);
   drawParticles(ctx);
+  drawBlastRings(ctx);
 
   ctx.restore();
 
@@ -272,14 +396,14 @@ function drawGameOver() {
   ctx.textAlign = "center";
 
   // GAME OVER
-  ctx.font = "bold 48px 'Courier New', monospace";
+  ctx.font = "bold 48px 'Space Mono', monospace";
   ctx.fillStyle = "#f22";
   ctx.shadowColor = "#f00";
   ctx.shadowBlur = 20;
   ctx.fillText("GAME OVER", CANVAS_W / 2, CANVAS_H / 2 - 40);
 
   // Final score
-  ctx.font = "bold 24px 'Courier New', monospace";
+  ctx.font = "bold 24px 'Space Mono', monospace";
   ctx.fillStyle = "#fff";
   ctx.shadowBlur = 0;
   ctx.fillText(
@@ -289,7 +413,7 @@ function drawGameOver() {
   );
 
   // Instructions
-  ctx.font = "16px 'Courier New', monospace";
+  ctx.font = "16px 'Space Mono', monospace";
   ctx.fillStyle = "#888";
   ctx.fillText("ENTER to restart  |  ESC for upload screen", CANVAS_W / 2, CANVAS_H / 2 + 50);
 
