@@ -52,6 +52,8 @@ let fireRequested = false;
 let spawnTimer = 0;
 let spawnInterval = 1200;
 let animId = 0;
+const bombBotImg = new Image();
+bombBotImg.src = "/laser-head/bomb-robot.svg";
 let onRestart: () => void;
 let onUpload: () => void;
 
@@ -336,8 +338,8 @@ function loop() {
   const ph = player.height * 0.4;
   for (let ei = enemies.length - 1; ei >= 0; ei--) {
     const e = enemies[ei];
-    // Detonating bombs don't deal contact damage
-    if (e.type === "bomb" && e.detonateTimer !== undefined) continue;
+    // Bombs don't deal contact damage
+    if (e.type === "bomb") continue;
     const halfSize = e.size * 0.4;
     if (
       player.x - pw < e.x + halfSize &&
@@ -402,6 +404,20 @@ function drawGameOver() {
   const totalH = goH + gap1 + scoreH + gap2 + instrH;
   const topY = (CANVAS_H - totalH) / 2;
 
+  // Bomb bot hovering above title
+  if (bombBotImg && bombBotImg.complete && bombBotImg.naturalWidth > 0) {
+    const targetSize = 81;
+    const aspect = bombBotImg.naturalWidth / bombBotImg.naturalHeight;
+    const drawW = aspect >= 1 ? targetSize : targetSize * aspect;
+    const drawH = aspect >= 1 ? targetSize / aspect : targetSize;
+    const bobOffset = Math.sin(Date.now() / 400) * 6;
+    const botX = (CANVAS_W - drawW) / 2;
+    const botY = topY - drawH - 12 + bobOffset;
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(bombBotImg, botX, botY, drawW, drawH);
+    ctx.globalAlpha = 1;
+  }
+
   // GAME OVER — pixel art title
   drawPixelText(ctx, "GAME OVER", (CANVAS_W - goW) / 2, topY);
 
@@ -411,7 +427,7 @@ function drawGameOver() {
   ctx.font = "bold 24px 'Roboto Mono', monospace";
   ctx.fillStyle = "#fff";
   ctx.fillText(
-    `FINAL SCORE: ${state.score.toString().padStart(8, "0")}`,
+    `FINAL SCORE: ${state.score.toString().padStart(6, "0")}`,
     CANVAS_W / 2,
     topY + goH + gap1 + scoreH
   );

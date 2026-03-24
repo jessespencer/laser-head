@@ -7,7 +7,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.font = "bold 20px 'Roboto Mono', monospace";
   ctx.fillStyle = "#fff";
   ctx.textAlign = "left";
-  ctx.fillText(`SCORE: ${state.score.toString().padStart(8, "0")}`, 16, 32);
+  ctx.fillText(`SCORE: ${state.score.toString().padStart(6, "0")}`, 16, 32);
 
   // Lives — red dots below score
   for (let i = 0; i < state.lives; i++) {
