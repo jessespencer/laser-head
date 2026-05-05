@@ -1,1 +1,5 @@
 node_modules
+dist
+
+# tsc emits .js next to .ts sources; vite handles bundling
+src/*.js

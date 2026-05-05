@@ -2,6 +2,8 @@ import { removeBackground as imglyRemoveBackground } from "@imgly/background-rem
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import { renderPixelTitle } from "./pixelfont";
+import { buildSideGradient } from "./keycap-gradients";
+import "./keycap.css";
 
 const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -572,42 +574,34 @@ function showControlsScreen(onDone: () => void) {
   canvas.style.display = "none";
   uploadScreen.style.display = "flex";
 
-  const keyStyle = `
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Roboto Mono', monospace;
-    font-weight: bold;
-    font-size: 14px;
-    color: #1a1a2e;
-    background: linear-gradient(180deg, #f0ece4, #d8d4cc);
-    border-radius: 8px;
-    box-shadow: 0 4px 0 #a8a49c, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.5);
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-  `;
-  const accentKeyStyle = `
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Roboto Mono', monospace;
-    font-weight: bold;
-    font-size: 14px;
-    color: #fff;
-    background: linear-gradient(180deg, #ff3a3a, #cc1100);
-    border-radius: 8px;
-    box-shadow: 0 4px 0 #8a0a00, 0 6px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3);
-    width: 52px;
-    height: 52px;
-    flex-shrink: 0;
-  `;
+  const creamSide = buildSideGradient("cream", "1u");
+  const orangeSide = buildSideGradient("orange", "3u");
+  const charcoalSide = buildSideGradient("charcoal", "1u");
+
   const labelStyle = `
     color: #667;
     font-family: 'Roboto Mono', monospace;
     font-size: 12px;
     margin: 0;
     text-align: center;
+  `;
+
+  const plateStyle = (cols: number, rows: number) => `
+    display: grid;
+    grid-template-columns: repeat(${cols}, 60px);
+    grid-template-rows: repeat(${rows}, 60px);
+    gap: 6px;
+    padding: 6px;
+    background: oklch(0.20 0.01 260);
+    --gap: 6px;
+  `;
+
+  const keycap = (variant: string, size: string, side: string | undefined, content: string, gridPos?: string, contentStyle?: string) => `
+    <div${gridPos ? ` style="${gridPos}"` : ""}>
+      <div class="kb-keycap" data-variant="${variant}" data-size="${size}"${side ? ` style="background: ${side}"` : ""}>
+        <span class="kb-content"${contentStyle ? ` style="${contentStyle}"` : ""}>${content}</span>
+      </div>
+    </div>
   `;
 
   uploadScreen.innerHTML = `
@@ -621,72 +615,40 @@ function showControlsScreen(onDone: () => void) {
       <div id="pixel-controls-title" style="margin: 0;"></div>
 
       <div style="display: flex; flex-direction: column; gap: 24px; align-items: center;">
-        <!-- Arrows cluster -->
+        <!-- Arrow keys -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <p style="${labelStyle}">Move</p>
-          <div style="
-            background: #1a1a2e;
-            border-radius: 14px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            align-items: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-          ">
-            <div style="display: flex; gap: 6px; justify-content: center;">
-              <div style="${keyStyle}">&#9650;</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <div style="${keyStyle}">&#9664;</div>
-              <div style="${keyStyle}">&#9660;</div>
-              <div style="${keyStyle}">&#9654;</div>
-            </div>
+          <div class="kb-plate" style="${plateStyle(3, 2)}">
+            ${keycap("cream", "1u", creamSide, "&#9650;", "grid-column: 2; grid-row: 1;")}
+            ${keycap("cream", "1u", creamSide, "&#9664;", "grid-column: 1; grid-row: 2;")}
+            ${keycap("cream", "1u", creamSide, "&#9660;", "grid-column: 2; grid-row: 2;")}
+            ${keycap("cream", "1u", creamSide, "&#9654;", "grid-column: 3; grid-row: 2;")}
           </div>
         </div>
 
         <!-- Spacebar -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <p style="${labelStyle}">Shoot</p>
-          <div style="
-            background: #1a1a2e;
-            border-radius: 14px;
-            padding: 10px;
-            display: inline-flex;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-          ">
-            <div style="${accentKeyStyle} width: 180px;">SPACE</div>
+          <div class="kb-plate" style="${plateStyle(3, 1)}">
+            ${keycap("orange", "3u", orangeSide, "SPACE", "grid-column: 1 / span 3; grid-row: 1;")}
           </div>
         </div>
 
         <!-- ESC -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <p style="${labelStyle}">Quit</p>
-          <div style="
-            background: #1a1a2e;
-            border-radius: 14px;
-            padding: 10px;
-            display: inline-flex;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
-          ">
-            <div style="${keyStyle} font-size: 11px;">ESC</div>
+          <div class="kb-plate" style="${plateStyle(1, 1)}">
+            ${keycap("charcoal", "1u", charcoalSide, "ESC", undefined, "font-size: 0.75rem;")}
           </div>
         </div>
       </div>
 
-      <p style="
+      <p class="kb-blink" style="
         color: #445;
         font-family: 'Roboto Mono', monospace;
         font-size: 14px;
         margin: 0;
-        animation: blink 1.2s step-end infinite;
       ">Press any key to start</p>
-
-      <style>
-        @keyframes blink {
-          50% { opacity: 0; }
-        }
-      </style>
     </div>
   `;
 
