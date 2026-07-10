@@ -2,6 +2,7 @@ import { removeBackground as imglyRemoveBackground } from "@imgly/background-rem
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import { renderPixelTitle } from "./pixelfont";
+import { LASER_HEAD_ASCII } from "./asciiTitle";
 
 const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -62,7 +63,17 @@ function showUploadScreen() {
       gap: 24px;
       user-select: none;
     ">
-      <div id="pixel-title" style="margin: 0;"></div>
+      <pre id="ascii-title" style="
+        margin: 0;
+        color: #ff2d2d;
+        font-family: 'Roboto Mono', monospace;
+        font-size: clamp(5px, 1.55vw, 13px);
+        line-height: 1.05;
+        letter-spacing: 0;
+        white-space: pre;
+        text-shadow: 0 0 6px rgba(255,40,0,0.55), 0 0 18px rgba(255,20,0,0.35);
+        user-select: none;
+      ">${LASER_HEAD_ASCII}</pre>
 
       <p style="
         color: #556;
@@ -201,12 +212,6 @@ function showUploadScreen() {
     min-height: 100vh;
     width: 100%;
   `;
-
-  // Render pixel art title
-  const titleContainer = document.getElementById("pixel-title")!;
-  const titleCanvas = renderPixelTitle("LASER HEAD");
-  titleCanvas.style.imageRendering = "pixelated";
-  titleContainer.appendChild(titleCanvas);
 
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
   const uploadBtn = document.getElementById("upload-btn")!;
