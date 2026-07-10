@@ -210,7 +210,6 @@ function showUploadScreen() {
 
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
   const uploadBtn = document.getElementById("upload-btn")!;
-  const playBtn = document.getElementById("play-btn")!;
   const defaultZone = document.getElementById("default-zone")!;
 
   defaultZone.addEventListener("mouseenter", () => { defaultZone.style.borderColor = "#f22"; });

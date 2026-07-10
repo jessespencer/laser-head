@@ -23,6 +23,74 @@ for (const [type, def] of Object.entries(ENEMY_TYPES)) {
   enemyImages[type as EnemyType] = img;
 }
 
+// --- Pre-baked enemy sprites (image + glow baked once per type) ---
+// Avoids a per-frame shadowBlur pass on every enemy and the per-frame
+// createElement("canvas") that the old hit-flash path allocated.
+
+const GLOW_PAD = 20; // room for shadowBlur bleed
+
+interface EnemySprites {
+  drawW: number;
+  drawH: number;
+  normal: HTMLCanvasElement;
+  flashWhite: HTMLCanvasElement;
+  flashYellow: HTMLCanvasElement; // only meaningful for bombs
+}
+
+const spriteCache: Partial<Record<EnemyType, EnemySprites>> = {};
+
+function bakeSprite(
+  img: HTMLImageElement,
+  drawW: number,
+  drawH: number,
+  glowColor: string,
+  tint: string | null
+): HTMLCanvasElement {
+  // Tinted (or plain) silhouette first...
+  const temp = document.createElement("canvas");
+  temp.width = drawW;
+  temp.height = drawH;
+  const tc = temp.getContext("2d")!;
+  tc.drawImage(img, 0, 0, drawW, drawH);
+  if (tint) {
+    tc.globalCompositeOperation = "source-atop";
+    tc.fillStyle = tint;
+    tc.fillRect(0, 0, drawW, drawH);
+  }
+  // ...then blit it with a baked shadow to produce the glow.
+  const out = document.createElement("canvas");
+  out.width = drawW + GLOW_PAD * 2;
+  out.height = drawH + GLOW_PAD * 2;
+  const oc = out.getContext("2d")!;
+  oc.shadowColor = glowColor;
+  oc.shadowBlur = 15;
+  oc.drawImage(temp, GLOW_PAD, GLOW_PAD);
+  return out;
+}
+
+function getSprites(type: EnemyType): EnemySprites | null {
+  const cached = spriteCache[type];
+  if (cached) return cached;
+  const img = enemyImages[type];
+  if (!img.complete || img.naturalWidth === 0) return null;
+
+  const def = ENEMY_TYPES[type];
+  const targetSize = def.size * 1.5;
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const drawW = aspect >= 1 ? targetSize : targetSize * aspect;
+  const drawH = aspect >= 1 ? targetSize / aspect : targetSize;
+
+  const sprites: EnemySprites = {
+    drawW,
+    drawH,
+    normal: bakeSprite(img, drawW, drawH, def.glowColor, null),
+    flashWhite: bakeSprite(img, drawW, drawH, "#fff", "#fff"),
+    flashYellow: bakeSprite(img, drawW, drawH, "#fff", "#ff0"),
+  };
+  spriteCache[type] = sprites;
+  return sprites;
+}
+
 export function getEnemies(): Enemy[] {
   return enemies;
 }
@@ -136,50 +204,30 @@ export function removeEnemy(index: number) {
 export function drawEnemies(ctx: CanvasRenderingContext2D, frame: number) {
   for (const e of enemies) {
     const def = ENEMY_TYPES[e.type];
-    const img = enemyImages[e.type];
-    const glow = e.flashFrames > 0 ? "#fff" : def.glowColor;
-    const targetSize = e.size * 1.5;
-    // Preserve aspect ratio: fit within targetSize box
-    const aspect = img.naturalWidth && img.naturalHeight
-      ? img.naturalWidth / img.naturalHeight
-      : 1;
-    const drawW = aspect >= 1 ? targetSize : targetSize * aspect;
-    const drawH = aspect >= 1 ? targetSize / aspect : targetSize;
+    const sprites = getSprites(e.type);
+    if (!sprites) continue; // image not loaded yet
+    const { drawW, drawH } = sprites;
     const left = e.x - drawW / 2;
     const top = e.y - drawH / 2;
 
-    ctx.save();
-    ctx.shadowColor = glow;
-    ctx.shadowBlur = 15;
-
     // Bombs fade out in last 60 frames (~1 second)
-    if (e.type === "bomb" && e.bombLifetime !== undefined && e.bombLifetime < 60) {
-      ctx.globalAlpha = Math.max(0, e.bombLifetime / 60);
+    const alpha =
+      e.type === "bomb" && e.bombLifetime !== undefined && e.bombLifetime < 60
+        ? Math.max(0, e.bombLifetime / 60)
+        : 1;
+
+    // Pick the pre-baked variant (glow already inside the sprite).
+    let sprite = sprites.normal;
+    if (e.flashFrames > 0) {
+      sprite =
+        e.type === "bomb" && e.detonateTimer !== undefined && e.detonateTimer % 6 >= 3
+          ? sprites.flashYellow
+          : sprites.flashWhite;
     }
 
-    if (img.complete && img.naturalWidth > 0) {
-      if (e.flashFrames > 0) {
-        // Hit flash: draw to offscreen canvas with tint
-        const off = document.createElement("canvas");
-        off.width = drawW;
-        off.height = drawH;
-        const oc = off.getContext("2d")!;
-        oc.drawImage(img, 0, 0, drawW, drawH);
-        oc.globalCompositeOperation = "source-atop";
-        // Bombs alternate white/yellow during detonation
-        if (e.type === "bomb" && e.detonateTimer !== undefined) {
-          oc.fillStyle = (e.detonateTimer % 6 < 3) ? "#fff" : "#ff0";
-        } else {
-          oc.fillStyle = "#fff";
-        }
-        oc.fillRect(0, 0, drawW, drawH);
-        ctx.drawImage(off, left, top, drawW, drawH);
-      } else {
-        ctx.drawImage(img, left, top, drawW, drawH);
-      }
-    }
-
-    ctx.restore();
+    if (alpha !== 1) ctx.globalAlpha = alpha;
+    ctx.drawImage(sprite, left - GLOW_PAD, top - GLOW_PAD);
+    if (alpha !== 1) ctx.globalAlpha = 1;
 
     // Bomb eye blink (overlay red rects over eye positions)
     if (e.type === "bomb" && e.detonateTimer === undefined) {

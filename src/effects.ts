@@ -12,8 +12,11 @@ let stars: Star[] = [];
 
 export function initStarfield() {
   stars = [];
+  // Scale star count with screen area so a fullscreen field isn't sparse.
+  const areaFactor = Math.min(4, Math.max(1, (CANVAS_W * CANVAS_H) / (800 * 600)));
   for (const layer of STAR_LAYERS) {
-    for (let i = 0; i < layer.count; i++) {
+    const count = Math.round(layer.count * areaFactor);
+    for (let i = 0; i < count; i++) {
       stars.push({
         x: Math.random() * CANVAS_W,
         y: Math.random() * CANVAS_H,
@@ -45,11 +48,23 @@ export function drawStarfield(ctx: CanvasRenderingContext2D) {
 }
 
 // --- CRT Overlay ---
+// A single repeating scanline pattern instead of hundreds of fillRects/frame.
+
+let crtPattern: CanvasPattern | null = null;
 
 export function drawCRT(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = "rgba(0,0,0,0.06)";
-  for (let y = 0; y < CANVAS_H; y += 3) {
-    ctx.fillRect(0, y, CANVAS_W, 1);
+  if (!crtPattern) {
+    const tile = document.createElement("canvas");
+    tile.width = 1;
+    tile.height = 3;
+    const tctx = tile.getContext("2d")!;
+    tctx.fillStyle = "rgba(0,0,0,0.06)";
+    tctx.fillRect(0, 0, 1, 1); // 1px dark line every 3px
+    crtPattern = ctx.createPattern(tile, "repeat");
+  }
+  if (crtPattern) {
+    ctx.fillStyle = crtPattern;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   }
 }
 
@@ -94,6 +109,10 @@ export function updateParticles() {
     if (p.alpha <= 0) {
       particles.splice(i, 1);
     }
+  }
+  // Hard cap: drop the oldest if simultaneous blasts pile up.
+  if (particles.length > 700) {
+    particles.splice(0, particles.length - 700);
   }
 }
 

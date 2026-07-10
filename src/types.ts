@@ -1,6 +1,12 @@
-// Canvas dimensions
-export const CANVAS_W = 800;
-export const CANVAS_H = 600;
+// Canvas dimensions — mutable so the play field fills the viewport.
+// Read as live bindings inside functions; never destructured at module load.
+export let CANVAS_W = 800;
+export let CANVAS_H = 600;
+
+export function setCanvasSize(w: number, h: number) {
+  CANVAS_W = w;
+  CANVAS_H = h;
+}
 
 // Player
 export const PLAYER_SPEED = 5;

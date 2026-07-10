@@ -3,6 +3,31 @@ import { Player, CANVAS_W, CANVAS_H, PLAYER_SPEED, PLAYER_SIZE } from "./types";
 let glowCanvas: OffscreenCanvas | null = null;
 let glowCtx: OffscreenCanvasRenderingContext2D | null = null;
 
+// Pre-baked red halo disc (drawn additively, scaled by glow intensity).
+let haloSprite: HTMLCanvasElement | null = null;
+let haloRadius = 0;
+function getHalo(width: number): HTMLCanvasElement {
+  if (haloSprite && haloRadius === width * 0.8) return haloSprite;
+  haloRadius = width * 0.8;
+  const d = Math.ceil(haloRadius * 2);
+  const c = document.createElement("canvas");
+  c.width = d;
+  c.height = d;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(
+    haloRadius, haloRadius, 0,
+    haloRadius, haloRadius, haloRadius
+  );
+  grad.addColorStop(0, "rgba(255,30,0,0.4)");
+  grad.addColorStop(1, "rgba(255,0,0,0)");
+  g.fillStyle = grad;
+  g.beginPath();
+  g.arc(haloRadius, haloRadius, haloRadius, 0, Math.PI * 2);
+  g.fill();
+  haloSprite = c;
+  return haloSprite;
+}
+
 export function createPlayer(image: HTMLImageElement): Player {
   return {
     x: 120,
@@ -46,17 +71,14 @@ export function drawPlayer(player: Player, ctx: CanvasRenderingContext2D) {
   const left = x - width / 2;
   const top = y - height / 2;
 
-  // Red halo behind head
+  // Red halo behind head — baked disc, additive, intensity via alpha
   if (glowIntensity > 0) {
     const prev = ctx.globalCompositeOperation;
     ctx.globalCompositeOperation = "lighter";
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, width * 0.8);
-    grad.addColorStop(0, `rgba(255,30,0,${0.4 * glowIntensity})`);
-    grad.addColorStop(1, "rgba(255,0,0,0)");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, width * 0.8, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.globalAlpha = glowIntensity;
+    const halo = getHalo(width);
+    ctx.drawImage(halo, x - halo.width / 2, y - halo.height / 2);
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = prev;
   }
 
