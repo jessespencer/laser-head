@@ -1,14 +1,28 @@
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
-import { renderPixelTitle } from "./pixelfont";
-import { LASER_HEAD_ASCII } from "./asciiTitle";
+import { LASER_HEAD_ASCII, ALIGN_FACE_ASCII, CONTROLS_ASCII } from "./asciiTitle";
 
 const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 
 let loadedImage: HTMLImageElement | null = null;
 let userUploadedImage: HTMLImageElement | null = null;
+
+// Red DOS Rebel block-art title, shared across screens.
+function asciiTitle(art: string): string {
+  return `<pre style="
+    margin: 0;
+    color: #ff2d2d;
+    font-family: 'Roboto Mono', monospace;
+    font-size: clamp(5px, 1.55vw, 13px);
+    line-height: 1.05;
+    letter-spacing: 0;
+    white-space: pre;
+    text-shadow: 0 0 6px rgba(255,40,0,0.55), 0 0 18px rgba(255,20,0,0.35);
+    user-select: none;
+  ">${art}</pre>`;
+}
 
 // ── Background Removal ─────────────────────────────────────────────
 
@@ -63,17 +77,7 @@ function showUploadScreen() {
       gap: 24px;
       user-select: none;
     ">
-      <pre id="ascii-title" style="
-        margin: 0;
-        color: #ff2d2d;
-        font-family: 'Roboto Mono', monospace;
-        font-size: clamp(5px, 1.55vw, 13px);
-        line-height: 1.05;
-        letter-spacing: 0;
-        white-space: pre;
-        text-shadow: 0 0 6px rgba(255,40,0,0.55), 0 0 18px rgba(255,20,0,0.35);
-        user-select: none;
-      ">${LASER_HEAD_ASCII}</pre>
+      ${asciiTitle(LASER_HEAD_ASCII)}
 
       <p style="
         color: #556;
@@ -317,7 +321,7 @@ function showAlignScreen(img: HTMLImageElement) {
       gap: 20px;
       user-select: none;
     ">
-      <div id="pixel-align-title" style="margin: 0;"></div>
+      ${asciiTitle(ALIGN_FACE_ASCII)}
 
       <p style="
         color: #556;
@@ -367,12 +371,6 @@ function showAlignScreen(img: HTMLImageElement) {
     min-height: 100vh;
     width: 100%;
   `;
-
-  // Render pixel art title for align screen
-  const alignTitleContainer = document.getElementById("pixel-align-title")!;
-  const alignTitleCanvas = renderPixelTitle("ALIGN FACE");
-  alignTitleCanvas.style.imageRendering = "pixelated";
-  alignTitleContainer.appendChild(alignTitleCanvas);
 
   const alignCanvas = document.getElementById("align-canvas") as HTMLCanvasElement;
   const alignCtx = alignCanvas.getContext("2d")!;
@@ -622,7 +620,7 @@ function showControlsScreen(onDone: () => void) {
       gap: 36px;
       user-select: none;
     ">
-      <div id="pixel-controls-title" style="margin: 0;"></div>
+      ${asciiTitle(CONTROLS_ASCII)}
 
       <div style="display: flex; flex-direction: column; gap: 24px; align-items: center;">
         <!-- Arrows cluster -->
@@ -693,12 +691,6 @@ function showControlsScreen(onDone: () => void) {
       </style>
     </div>
   `;
-
-  // Pixel art title for controls screen
-  const ctrlTitle = document.getElementById("pixel-controls-title")!;
-  const ctrlCanvas = renderPixelTitle("CONTROLS");
-  ctrlCanvas.style.imageRendering = "pixelated";
-  ctrlTitle.appendChild(ctrlCanvas);
 
   uploadScreen.style.cssText = `
     display: flex;
