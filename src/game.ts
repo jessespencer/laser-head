@@ -7,6 +7,7 @@ import {
   DIFFICULTY_INTERVAL,
   ENEMY_TYPES,
   BG_COLOR,
+  setCanvasSize,
 } from "./types";
 import {
   initStarfield,
@@ -52,6 +53,7 @@ let fireRequested = false;
 let spawnTimer = 0;
 let spawnInterval = 1200;
 let animId = 0;
+let dpr = 1;
 const bombBotImg = new Image();
 bombBotImg.src = "/laser-head/bomb-robot.svg";
 let onRestart: () => void;
@@ -63,10 +65,14 @@ export function startGame(
   uploadCb: () => void
 ) {
   canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
-  ctx = canvas.getContext("2d")!;
+  ctx = canvas.getContext("2d", { alpha: false })!;
 
   onRestart = restartCb;
   onUpload = uploadCb;
+
+  // Size the canvas to the viewport before anything reads CANVAS_W/H.
+  resize();
+  window.addEventListener("resize", resize);
 
   // Init state
   player = createPlayer(image);
@@ -140,6 +146,26 @@ function cleanup() {
   cancelAnimationFrame(animId);
   window.removeEventListener("keydown", onKeyDown);
   window.removeEventListener("keyup", onKeyUp);
+  window.removeEventListener("resize", resize);
+}
+
+// Fill the viewport at device resolution (DPR capped so 4K/retina fill rate
+// stays sane). The world coordinate system tracks CSS pixels 1:1.
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  setCanvasSize(w, h);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  // Re-seed the starfield to the new area and keep the player in-bounds.
+  initStarfield();
+  if (player) {
+    player.x = Math.min(player.x, w - player.width / 2);
+    player.y = Math.min(player.y, h - player.height / 2);
+  }
 }
 
 function loop() {
@@ -367,6 +393,9 @@ function loop() {
   updateShake();
 
   // --- Render ---
+  // Base transform maps CSS-pixel world coords onto the DPR-scaled backing store.
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
   const shake = getShakeOffset();
   ctx.save();
   ctx.translate(shake.x, shake.y);
@@ -391,6 +420,7 @@ function loop() {
 }
 
 function drawGameOver() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // Dim overlay
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
