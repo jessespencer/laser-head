@@ -1,3 +1,14 @@
+```txt
+ ████                                          █████                             █████
+░░███                                         ░░███                             ░░███
+ ░███   ██████    █████   ██████  ████████     ░███████    ██████   ██████    ███████
+ ░███  ░░░░░███  ███░░   ███░░███░░███░░███    ░███░░███  ███░░███ ░░░░░███  ███░░███
+ ░███   ███████ ░░█████ ░███████  ░███ ░░░     ░███ ░███ ░███████   ███████ ░███ ░███
+ ░███  ███░░███  ░░░░███░███░░░   ░███         ░███ ░███ ░███░░░   ███░░███ ░███ ░███
+ █████░░████████ ██████ ░░██████  █████        ████ █████░░██████ ░░████████░░████████
+░░░░░  ░░░░░░░░ ░░░░░░   ░░░░░░  ░░░░░        ░░░░ ░░░░░  ░░░░░░   ░░░░░░░░  ░░░░░░░░
+```
+
 # Laser Head
 
 A browser-based arcade shoot-em-up where you use your own face to shoot lasers and destroy incoming enemies. Upload a photo, align your eyes, and fire away.
@@ -16,7 +27,7 @@ A browser-based arcade shoot-em-up where you use your own face to shoot lasers a
 - TypeScript + Vite
 - HTML5 Canvas for rendering
 - @imgly/background-removal for ML-powered image processing
-- Tailwind CSS (CDN)
+- Roboto Mono via Google Fonts; deployed to GitHub Pages
 
 ## Setup
 
