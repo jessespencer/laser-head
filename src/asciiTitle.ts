@@ -1,3 +1,10 @@
+// Shared look for the red DOS Rebel block banner that tops every screen.
+// Fixed size (not viewport-scaled) so it reads identically on all of them.
+export const BANNER_FONT_SIZE = 13;
+export const BANNER_LINE_HEIGHT = 1.05;
+export const BANNER_COLOR = "#ff2d2d";
+export const BANNER_GLOW = "0 0 6px rgba(255,40,0,0.55), 0 0 18px rgba(255,20,0,0.35)";
+
 // Auto-generated from figlet DOS Rebel. Do not edit by hand.
 export const LASER_HEAD_ASCII = ` ████                                          █████                             █████
 ░░███                                         ░░███                             ░░███
@@ -26,3 +33,12 @@ export const CONTROLS_ASCII = `                               █████   
 ░███  ███░███ ░███ ░███ ░███   ░███ ███ ░███     ░███ ░███ ░███  ░░░░███
 ░░██████ ░░██████  ████ █████  ░░█████  █████    ░░██████  █████ ██████
  ░░░░░░   ░░░░░░  ░░░░ ░░░░░    ░░░░░  ░░░░░      ░░░░░░  ░░░░░ ░░░░░░`;
+export const GAME_OVER_ASCII = `  ███████  ██████   █████████████    ██████      ██████  █████ █████  ██████  ████████
+ ███░░███ ░░░░░███ ░░███░░███░░███  ███░░███    ███░░███░░███ ░░███  ███░░███░░███░░███
+░███ ░███  ███████  ░███ ░███ ░███ ░███████    ░███ ░███ ░███  ░███ ░███████  ░███ ░░░
+░███ ░███ ███░░███  ░███ ░███ ░███ ░███░░░     ░███ ░███ ░░███ ███  ░███░░░   ░███
+░░███████░░████████ █████░███ █████░░██████    ░░██████   ░░█████   ░░██████  █████
+ ░░░░░███ ░░░░░░░░ ░░░░░ ░░░ ░░░░░  ░░░░░░      ░░░░░░     ░░░░░     ░░░░░░  ░░░░░
+ ███ ░███
+░░██████
+ ░░░░░░`;
