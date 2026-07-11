@@ -39,7 +39,12 @@ import {
   detonateBomb,
 } from "./enemies";
 import { drawHUD } from "./hud";
-import { drawPixelText, getPixelTextWidth, getPixelTextHeight } from "./pixelfont";
+import {
+  GAME_OVER_ASCII,
+  BANNER_FONT_SIZE,
+  BANNER_LINE_HEIGHT,
+  BANNER_COLOR,
+} from "./asciiTitle";
 import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
 import type { Player } from "./types";
 import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
@@ -54,8 +59,6 @@ let spawnTimer = 0;
 let spawnInterval = 1200;
 let animId = 0;
 let dpr = 1;
-const bombBotImg = new Image();
-bombBotImg.src = "/laser-head/bomb-robot.svg";
 let onRestart: () => void;
 let onUpload: () => void;
 
@@ -419,52 +422,68 @@ function loop() {
   drawCRT(ctx);
 }
 
+const BANNER_LINE_H = BANNER_FONT_SIZE * BANNER_LINE_HEIGHT;
+
+function bannerHeight(art: string): number {
+  return art.split("\n").length * BANNER_LINE_H;
+}
+
+// Canvas twin of main.ts's asciiTitle(): the red block banner, horizontally
+// centered, drawn with its top edge at topY.
+function drawBanner(c: CanvasRenderingContext2D, art: string, topY: number) {
+  const lines = art.split("\n");
+  const maxCols = Math.max(...lines.map((l) => l.length));
+  const width = maxCols * BANNER_FONT_SIZE * 0.6; // Roboto Mono advance ≈ 0.6em
+  const startX = (CANVAS_W - width) / 2;
+
+  c.save();
+  c.textAlign = "left";
+  c.textBaseline = "top";
+  c.font = `${BANNER_FONT_SIZE}px 'Roboto Mono', monospace`;
+  c.fillStyle = BANNER_COLOR;
+  c.shadowColor = "rgba(255,40,0,0.55)";
+  c.shadowBlur = 6;
+  lines.forEach((line, i) => {
+    c.fillText(line, startX, topY + i * BANNER_LINE_H);
+  });
+  c.restore();
+}
+
 function drawGameOver() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // Dim overlay
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  const goW = getPixelTextWidth("GAME OVER");
-  const goH = getPixelTextHeight();
+  // Banner, score and instructions form one vertically-centered stack — same
+  // visual flow as the upload / align / controls screens.
+  const goH = bannerHeight(GAME_OVER_ASCII);
   const scoreH = 24;
   const instrH = 16;
-  const gap1 = 32; // between title and score
+  const gap1 = 32; // between banner and score
   const gap2 = 24; // between score and instructions
   const totalH = goH + gap1 + scoreH + gap2 + instrH;
   const topY = (CANVAS_H - totalH) / 2;
 
-  // Bomb bot hovering above title
-  if (bombBotImg && bombBotImg.complete && bombBotImg.naturalWidth > 0) {
-    const targetSize = 81;
-    const aspect = bombBotImg.naturalWidth / bombBotImg.naturalHeight;
-    const drawW = aspect >= 1 ? targetSize : targetSize * aspect;
-    const drawH = aspect >= 1 ? targetSize / aspect : targetSize;
-    const bobOffset = Math.sin(Date.now() / 400) * 6;
-    const botX = (CANVAS_W - drawW) / 2;
-    const botY = topY - drawH - 12 + bobOffset;
-    ctx.globalAlpha = 0.7;
-    ctx.drawImage(bombBotImg, botX, botY, drawW, drawH);
-    ctx.globalAlpha = 1;
-  }
+  drawBanner(ctx, GAME_OVER_ASCII, topY);
 
-  // GAME OVER — pixel art title
-  drawPixelText(ctx, "GAME OVER", (CANVAS_W - goW) / 2, topY);
-
-  // Final score
   ctx.save();
   ctx.textAlign = "center";
+  ctx.textBaseline = "top";
   ctx.font = "bold 24px 'Roboto Mono', monospace";
   ctx.fillStyle = "#fff";
   ctx.fillText(
     `FINAL SCORE: ${state.score.toString().padStart(6, "0")}`,
     CANVAS_W / 2,
-    topY + goH + gap1 + scoreH
+    topY + goH + gap1
   );
 
-  // Instructions
   ctx.font = "16px 'Roboto Mono', monospace";
   ctx.fillStyle = "#888";
-  ctx.fillText("ENTER to restart  |  ESC for upload screen", CANVAS_W / 2, topY + goH + gap1 + scoreH + gap2 + instrH);
+  ctx.fillText(
+    "ENTER to restart  |  ESC for upload screen",
+    CANVAS_W / 2,
+    topY + goH + gap1 + scoreH + gap2
+  );
   ctx.restore();
 }

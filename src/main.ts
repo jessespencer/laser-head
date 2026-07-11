@@ -1,7 +1,15 @@
 import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
-import { LASER_HEAD_ASCII, ALIGN_FACE_ASCII, CONTROLS_ASCII } from "./asciiTitle";
+import {
+  LASER_HEAD_ASCII,
+  ALIGN_FACE_ASCII,
+  CONTROLS_ASCII,
+  BANNER_FONT_SIZE,
+  BANNER_LINE_HEIGHT,
+  BANNER_COLOR,
+  BANNER_GLOW,
+} from "./asciiTitle";
 
 const uploadScreen = document.getElementById("upload-screen")!;
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -9,17 +17,20 @@ const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 let loadedImage: HTMLImageElement | null = null;
 let userUploadedImage: HTMLImageElement | null = null;
 
-// Red DOS Rebel block-art title, shared across screens.
+// Red DOS Rebel block-art banner, shared across screens. Sits in the normal flow
+// at the top of each screen's centered stack, at a fixed size so it reads the
+// same everywhere — including the canvas game-over screen (see drawBanner in
+// game.ts).
 function asciiTitle(art: string): string {
   return `<pre style="
     margin: 0;
-    color: #ff2d2d;
+    color: ${BANNER_COLOR};
     font-family: 'Roboto Mono', monospace;
-    font-size: clamp(5px, 1.55vw, 13px);
-    line-height: 1.05;
+    font-size: ${BANNER_FONT_SIZE}px;
+    line-height: ${BANNER_LINE_HEIGHT};
     letter-spacing: 0;
     white-space: pre;
-    text-shadow: 0 0 6px rgba(255,40,0,0.55), 0 0 18px rgba(255,20,0,0.35);
+    text-shadow: ${BANNER_GLOW};
     user-select: none;
   ">${art}</pre>`;
 }
