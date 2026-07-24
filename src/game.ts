@@ -86,6 +86,8 @@ export function startGame(
     multiplier: 1,
     comboTimer: 0,
     difficulty: 0,
+    kills: 0,
+    maxCombo: 0,
     shakeFrames: 0,
     gameOver: false,
     paused: false,
@@ -169,6 +171,22 @@ function resize() {
     player.x = Math.min(player.x, w - player.width / 2);
     player.y = Math.min(player.y, h - player.height / 2);
   }
+}
+
+// A single kill-event: bump combo, apply the combo multiplier to `basePoints`,
+// ramp difficulty, and record telemetry. `killCount` is how many enemies this
+// event destroyed (>1 for a bomb blast) — it feeds run telemetry only; combo
+// and the multiplier advance once per event, matching the original behavior.
+function recordKill(basePoints: number, killCount: number) {
+  state.combo++;
+  state.comboTimer = COMBO_WINDOW;
+  state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
+  state.score += basePoints * state.multiplier;
+  state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
+  spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+
+  state.kills += killCount;
+  if (state.combo > state.maxCombo) state.maxCombo = state.combo;
 }
 
 function loop() {
@@ -265,15 +283,7 @@ function loop() {
           const def = ENEMY_TYPES[e.type];
           spawnExplosion(e.x, e.y, def.color);
 
-          // Score with combo
-          state.combo++;
-          state.comboTimer = COMBO_WINDOW;
-          state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
-          state.score += def.points * state.multiplier;
-
-          // Difficulty ramp
-          state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
-          spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+          recordKill(def.points, 1);
 
           removeEnemy(ei);
         }
@@ -310,12 +320,7 @@ function loop() {
         if (e.hp <= 0) {
           const def = ENEMY_TYPES[e.type];
           spawnExplosion(e.x, e.y, def.color);
-          state.combo++;
-          state.comboTimer = COMBO_WINDOW;
-          state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
-          state.score += def.points * state.multiplier;
-          state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
-          spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+          recordKill(def.points, 1);
           removeEnemy(ei);
         }
         break;
@@ -344,14 +349,9 @@ function loop() {
         }
       }
 
-      // Score
+      // Score — bomb itself plus every enemy caught in the blast
       const bombDef = ENEMY_TYPES["bomb"];
-      state.combo++;
-      state.comboTimer = COMBO_WINDOW;
-      state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
-      state.score += (bombDef.points + blastKills * BOMB_KILL_BONUS) * state.multiplier;
-      state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
-      spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
+      recordKill(bombDef.points + blastKills * BOMB_KILL_BONUS, 1 + blastKills);
 
       // Effects — big blast
       spawnBombExplosion(e.x, e.y);
