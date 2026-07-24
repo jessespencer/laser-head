@@ -2,6 +2,12 @@ import { removeBackground as imglyRemoveBackground } from "@imgly/background-rem
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import {
+  getPlayerName,
+  setPlayerName,
+  getPersonalBest,
+  MAX_NAME_LEN,
+} from "./leaderboard";
+import {
   LASER_HEAD_ASCII,
   ALIGN_FACE_ASCII,
   CONTROLS_ASCII,
@@ -16,6 +22,15 @@ const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 
 let loadedImage: HTMLImageElement | null = null;
 let userUploadedImage: HTMLImageElement | null = null;
+
+// Escape a string for safe interpolation into an HTML attribute value.
+function escapeAttr(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 // Red DOS Rebel block-art banner, shared across screens. Sits in the normal flow
 // at the top of each screen's centered stack, at a fixed size so it reads the
@@ -96,6 +111,38 @@ function showUploadScreen() {
         font-size: 14px;
         margin: 0;
       ">Shoot lasers from your eyes.</p>
+
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-family: 'Roboto Mono', monospace;
+      ">
+        <label style="color:#556; font-size:13px; letter-spacing:2px;">NAME</label>
+        <input id="name-input" type="text" maxlength="${MAX_NAME_LEN}"
+          value="${escapeAttr(getPlayerName())}" spellcheck="false"
+          autocomplete="off" style="
+            font-family: 'Roboto Mono', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            width: 160px;
+            padding: 8px 12px;
+            background: #0c0e1a;
+            color: #fff;
+            border: 2px solid #333;
+            border-radius: 8px;
+            outline: none;
+            text-align: center;
+        " />
+        <span id="personal-best" style="
+          color: #6cf;
+          font-size: 13px;
+          letter-spacing: 2px;
+          min-width: 150px;
+        "></span>
+      </div>
 
       <div style="
         display: flex;
@@ -227,6 +274,21 @@ function showUploadScreen() {
     min-height: 100vh;
     width: 100%;
   `;
+
+  // Name entry — persist (sanitized) as the player types, reflecting the
+  // cleaned value back so what you see is what the board will store.
+  const nameInput = document.getElementById("name-input") as HTMLInputElement;
+  nameInput.addEventListener("change", () => {
+    nameInput.value = setPlayerName(nameInput.value);
+  });
+
+  // Personal best, resolved from the (local) leaderboard store.
+  const bestSpan = document.getElementById("personal-best")!;
+  getPersonalBest().then((best) => {
+    bestSpan.textContent = best
+      ? `BEST ${best.score.toString().padStart(6, "0")}`
+      : "";
+  });
 
   const fileInput = document.getElementById("file-input") as HTMLInputElement;
   const uploadBtn = document.getElementById("upload-btn")!;
