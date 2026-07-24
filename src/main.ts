@@ -5,7 +5,10 @@ import {
   getPlayerName,
   setPlayerName,
   getPersonalBest,
+  getPlayerToken,
+  fetchTop,
   MAX_NAME_LEN,
+  type LeaderboardEntry,
 } from "./leaderboard";
 import {
   LASER_HEAD_ASCII,
@@ -30,6 +33,42 @@ function escapeAttr(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+// Escape for HTML text content.
+function escapeHtml(s: string): string {
+  return escapeAttr(s).replace(/'/g, "&#39;");
+}
+
+// The top-board list for the upload screen — mirrors the canvas game-over
+// panel: heading, then one row per run (rank, avatar head, name, score) with
+// the current player's rows highlighted.
+function leaderboardHTML(entries: LeaderboardEntry[], me: string): string {
+  const rows = entries
+    .map((e) => {
+      const isMe = e.playerToken === me;
+      const rankColor = e.rank === 1 ? BANNER_COLOR : "#778";
+      const head = e.avatarThumb
+        ? `<img src="${escapeAttr(e.avatarThumb)}" style="width:34px;height:34px;flex-shrink:0;" />`
+        : `<div style="width:34px;height:34px;border-radius:50%;background:#223;flex-shrink:0;"></div>`;
+      return `
+        <div style="
+          display:flex; align-items:center; gap:16px;
+          padding:6px 8px; border-radius:6px;
+          background:${isMe ? "rgba(102,204,255,0.10)" : "transparent"};
+        ">
+          <span style="width:34px; color:${rankColor}; font-weight:bold; font-size:16px;">#${e.rank}</span>
+          ${head}
+          <span style="flex:1; color:${isMe ? "#9df" : "#ccd"}; font-weight:bold; font-size:14px;">${escapeHtml(e.name)}</span>
+          <span style="color:#fff; font-weight:bold; font-size:14px;">${e.score.toString().padStart(6, "0")}</span>
+        </div>`;
+    })
+    .join("");
+
+  return `
+    <div style="color:#556; font-size:12px; letter-spacing:2px; text-align:center; margin-bottom:12px;">— TOP HEADS —</div>
+    <div style="display:flex; flex-direction:column; gap:4px;">${rows}</div>
+  `;
 }
 
 // Red DOS Rebel block-art banner, shared across screens. Sits in the normal flow
@@ -262,6 +301,12 @@ function showUploadScreen() {
         </div>
       </div>
 
+      <div id="leaderboard" style="
+        width: 472px;
+        max-width: 90vw;
+        font-family: 'Roboto Mono', monospace;
+      "></div>
+
       <input type="file" id="file-input" accept="image/*" style="display:none" />
     </div>
   `;
@@ -288,6 +333,13 @@ function showUploadScreen() {
     bestSpan.textContent = best
       ? `BEST ${best.score.toString().padStart(6, "0")}`
       : "";
+  });
+
+  // Top board — same data as the game-over panel, rendered in the DOM here.
+  const boardEl = document.getElementById("leaderboard")!;
+  const me = getPlayerToken();
+  fetchTop(5).then((entries) => {
+    boardEl.innerHTML = entries.length ? leaderboardHTML(entries, me) : "";
   });
 
   const fileInput = document.getElementById("file-input") as HTMLInputElement;

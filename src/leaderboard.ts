@@ -65,21 +65,22 @@ export function getPlayerToken(): string {
   return token;
 }
 
-// Persist a finished run, then return the resulting top board. Keeps only each
-// player's single best run (by score), so a good run never gets buried under a
-// player's own weaker attempts.
+// How many runs we retain locally. Bounds localStorage; well above the top-N
+// we ever display. (Per-player dedup is deliberately NOT done here — a local
+// board is arcade-style, every run competes for a slot, repeats allowed. The
+// Tier 1 global board revisits this so one player can't hog every slot.)
+const MAX_STORED = 50;
+
+// Persist a finished run, then return the resulting top board. Every run is a
+// distinct entry; we keep the highest MAX_STORED by score.
 export async function submitRun(summary: RunSummary): Promise<LeaderboardEntry[]> {
   const board = readBoard();
-
-  const existing = board.find((r) => r.playerToken === summary.playerToken);
-  if (!existing) {
-    board.push(summary);
-  } else if (summary.score > existing.score) {
-    Object.assign(existing, summary); // replace with the better run in place
-  }
-
-  writeBoard(board);
-  return rank(board);
+  board.push(summary);
+  const trimmed = [...board]
+    .sort((a, b) => b.score - a.score || a.ts - b.ts)
+    .slice(0, MAX_STORED);
+  writeBoard(trimmed);
+  return rank(trimmed);
 }
 
 // Read the top `limit` rows, best score first.
