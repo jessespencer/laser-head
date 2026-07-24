@@ -53,6 +53,8 @@ export interface GameState {
   multiplier: number;
   comboTimer: number;
   difficulty: number;
+  kills: number;    // total enemies destroyed (run telemetry)
+  maxCombo: number; // highest combo reached (run telemetry)
   shakeFrames: number;
   gameOver: boolean;
   paused: boolean;
