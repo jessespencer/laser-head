@@ -28,8 +28,11 @@ const TOKEN_KEY = "laserhead.playerToken";
 const NAME_KEY = "laserhead.playerName";
 const BOARD_KEY = "laserhead.board.v1";
 
-export const DEFAULT_NAME = "PLAYER";
+export const DEFAULT_NAME = "AAA";
 export const MAX_NAME_LEN = 12;
+
+// The visible board size: how many rows we show and the bar for "placing".
+export const LEADERBOARD_SIZE = 10;
 
 // The display name for this browser, remembered across runs. Sanitized on write
 // so the board never holds control chars or oversized strings.
@@ -84,8 +87,18 @@ export async function submitRun(summary: RunSummary): Promise<LeaderboardEntry[]
 }
 
 // Read the top `limit` rows, best score first.
-export async function fetchTop(limit = 10): Promise<LeaderboardEntry[]> {
+export async function fetchTop(limit = LEADERBOARD_SIZE): Promise<LeaderboardEntry[]> {
   return rank(readBoard()).slice(0, limit);
+}
+
+// Would this score earn a spot on the visible board? True if the board isn't
+// full yet, or the score beats the current lowest shown entry. Zero never
+// places. This is the "enter your initials" gate.
+export async function qualifies(score: number): Promise<boolean> {
+  if (score <= 0) return false;
+  const ranked = rank(readBoard());
+  if (ranked.length < LEADERBOARD_SIZE) return true;
+  return score > ranked[LEADERBOARD_SIZE - 1].score;
 }
 
 // This browser's best score, or null if it has never submitted a run.
