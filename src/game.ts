@@ -46,6 +46,15 @@ import {
   BANNER_COLOR,
 } from "./asciiTitle";
 import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
+import {
+  submitRun,
+  getPersonalBest,
+  getPlayerToken,
+  getPlayerName,
+  makeThumbnail,
+  type RunSummary,
+  type LeaderboardEntry,
+} from "./leaderboard";
 import type { Player } from "./types";
 import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
 
@@ -61,6 +70,11 @@ let animId = 0;
 let dpr = 1;
 let onRestart: () => void;
 let onUpload: () => void;
+
+// Populated once when the run ends (see endGame). Read by drawGameOver.
+let topBoard: LeaderboardEntry[] = [];
+let personalBest: RunSummary | null = null; // best run so far, including this one
+let isNewBest = false; // did this run set a new personal best?
 
 export function startGame(
   image: HTMLImageElement,
@@ -98,6 +112,9 @@ export function startGame(
   fireRequested = false;
   spawnTimer = 0;
   spawnInterval = 1200;
+  topBoard = [];
+  personalBest = null;
+  isNewBest = false;
 
   clearLasers();
   clearUltraLasers();
@@ -187,6 +204,34 @@ function recordKill(basePoints: number, killCount: number) {
 
   state.kills += killCount;
   if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+}
+
+// End the run and submit its summary to the leaderboard exactly once. Async and
+// fire-and-forget: drawGameOver renders immediately and picks up topBoard /
+// personalBest on a later frame once the (currently local) store resolves.
+async function endGame() {
+  if (state.gameOver) return; // guard against double-submit
+  state.gameOver = true;
+
+  const summary: RunSummary = {
+    name: getPlayerName(),
+    score: state.score,
+    kills: state.kills,
+    maxCombo: state.maxCombo,
+    framesSurvived: state.frame,
+    difficulty: state.difficulty,
+    avatarThumb: makeThumbnail(player.image),
+    playerToken: getPlayerToken(),
+    ts: Date.now(),
+  };
+
+  // Compare against the stored best BEFORE submitting to flag a new record.
+  const prior = await getPersonalBest();
+  isNewBest = prior === null || summary.score > prior.score;
+
+  topBoard = await submitRun(summary);
+  personalBest =
+    topBoard.find((r) => r.playerToken === summary.playerToken) ?? summary;
 }
 
 function loop() {
@@ -386,7 +431,7 @@ function loop() {
       removeEnemy(ei);
 
       if (state.lives <= 0) {
-        state.gameOver = true;
+        void endGame();
       }
     }
   }
@@ -455,14 +500,16 @@ function drawGameOver() {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Banner, score and instructions form one vertically-centered stack — same
-  // visual flow as the upload / align / controls screens.
+  // Banner, score, personal-best and instructions form one vertically-centered
+  // stack — same visual flow as the upload / align / controls screens.
   const goH = bannerHeight(GAME_OVER_ASCII);
   const scoreH = 24;
+  const bestH = 18;
   const instrH = 16;
   const gap1 = 32; // between banner and score
-  const gap2 = 24; // between score and instructions
-  const totalH = goH + gap1 + scoreH + gap2 + instrH;
+  const gapBest = 12; // between score and personal-best
+  const gap2 = 24; // between personal-best and instructions
+  const totalH = goH + gap1 + scoreH + gapBest + bestH + gap2 + instrH;
   const topY = (CANVAS_H - totalH) / 2;
 
   drawBanner(ctx, GAME_OVER_ASCII, topY);
@@ -470,20 +517,37 @@ function drawGameOver() {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
+  const scoreY = topY + goH + gap1;
   ctx.font = "bold 24px 'Roboto Mono', monospace";
   ctx.fillStyle = "#fff";
   ctx.fillText(
     `FINAL SCORE: ${state.score.toString().padStart(6, "0")}`,
     CANVAS_W / 2,
-    topY + goH + gap1
+    scoreY
   );
+
+  // Personal best (or a "new best" flourish). Null until the async submit
+  // resolves — a frame or two after game over — so guard it.
+  const bestY = scoreY + scoreH + gapBest;
+  ctx.font = "bold 16px 'Roboto Mono', monospace";
+  if (isNewBest) {
+    ctx.fillStyle = BANNER_COLOR;
+    ctx.fillText("★ NEW PERSONAL BEST ★", CANVAS_W / 2, bestY);
+  } else if (personalBest) {
+    ctx.fillStyle = "#6cf";
+    ctx.fillText(
+      `PERSONAL BEST: ${personalBest.score.toString().padStart(6, "0")}`,
+      CANVAS_W / 2,
+      bestY
+    );
+  }
 
   ctx.font = "16px 'Roboto Mono', monospace";
   ctx.fillStyle = "#888";
   ctx.fillText(
     "ENTER to restart  |  ESC for upload screen",
     CANVAS_W / 2,
-    topY + goH + gap1 + scoreH + gap2
+    bestY + bestH + gap2
   );
   ctx.restore();
 }
