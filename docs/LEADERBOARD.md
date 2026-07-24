@@ -57,9 +57,13 @@ interface RunSummary {
 - [x] Player-token UUID in `localStorage`.
 - [x] Show `PERSONAL BEST` in `drawGameOver()` and on the upload screen.
 - [x] Board render: rows of tiny heads + rank; #1 head fires lasers.
+      Shown on BOTH the game-over screen (canvas) and the upload screen (DOM).
       (Rank rendered in Roboto Mono, not pixelfont — pixelfont has no digit
       glyphs yet; see parking lot.)
-- [x] Local top board (top 5 shown), deduped to one best row per player token.
+- [x] Local top board (top 5 shown). Arcade-style: every run is its own entry,
+      repeats allowed — NO per-player dedup locally (a single browser = one
+      token, so per-token dedup would show only ever one row). Tier 1's global
+      board revisits dedup so one player can't hog every slot.
 
 ### Tier 1 — global board, names only (needs backend)
 - [ ] Pick backend (Supabase = least effort; Cloudflare Workers if we want
