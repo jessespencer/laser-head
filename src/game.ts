@@ -55,7 +55,6 @@ import {
   type RunSummary,
   type LeaderboardEntry,
 } from "./leaderboard";
-import { LASER_CORE, LASER_MID, LASER_GLOW } from "./types";
 import type { Player } from "./types";
 import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
 
@@ -575,11 +574,6 @@ function drawLeaderboard(
       c.fill();
     }
 
-    // #1 fires lasers from its eyes.
-    if (entry.rank === 1) {
-      drawBoardLasers(c, mid, headX + LB_HEAD);
-    }
-
     // Name
     c.textAlign = "left";
     c.font = "bold 15px 'Roboto Mono', monospace";
@@ -595,35 +589,6 @@ function drawLeaderboard(
     rowY += LB_ROW_H;
   }
 
-  c.restore();
-}
-
-// A short animated laser pair streaking off the #1 head, reusing the in-game
-// laser gradient. Length pulses with the frame counter.
-function drawBoardLasers(
-  c: CanvasRenderingContext2D,
-  eyeY: number,
-  startX: number
-) {
-  const pulse = 0.6 + 0.4 * Math.sin(state.frame * 0.15);
-  const len = 26 * pulse;
-  const grad = c.createLinearGradient(startX, 0, startX + len, 0);
-  grad.addColorStop(0, LASER_CORE);
-  grad.addColorStop(0.4, LASER_MID);
-  grad.addColorStop(1, LASER_GLOW);
-
-  c.save();
-  c.strokeStyle = grad;
-  c.lineCap = "round";
-  c.shadowColor = LASER_GLOW;
-  c.shadowBlur = 8;
-  for (const dy of [-5, 5]) {
-    c.lineWidth = 2.5;
-    c.beginPath();
-    c.moveTo(startX, eyeY + dy);
-    c.lineTo(startX + len, eyeY + dy);
-    c.stroke();
-  }
   c.restore();
 }
 
