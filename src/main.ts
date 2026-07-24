@@ -2,12 +2,9 @@ import { removeBackground as imglyRemoveBackground } from "@imgly/background-rem
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import {
-  getPlayerName,
-  setPlayerName,
   getPersonalBest,
   getPlayerToken,
   fetchTop,
-  MAX_NAME_LEN,
   type LeaderboardEntry,
 } from "./leaderboard";
 import {
@@ -151,37 +148,13 @@ function showUploadScreen() {
         margin: 0;
       ">Shoot lasers from your eyes.</p>
 
-      <div style="
-        display: flex;
-        align-items: center;
-        gap: 16px;
+      <span id="personal-best" style="
+        color: #6cf;
         font-family: 'Roboto Mono', monospace;
-      ">
-        <label style="color:#556; font-size:13px; letter-spacing:2px;">NAME</label>
-        <input id="name-input" type="text" maxlength="${MAX_NAME_LEN}"
-          value="${escapeAttr(getPlayerName())}" spellcheck="false"
-          autocomplete="off" style="
-            font-family: 'Roboto Mono', monospace;
-            font-size: 14px;
-            font-weight: bold;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            width: 160px;
-            padding: 8px 12px;
-            background: #0c0e1a;
-            color: #fff;
-            border: 2px solid #333;
-            border-radius: 8px;
-            outline: none;
-            text-align: center;
-        " />
-        <span id="personal-best" style="
-          color: #6cf;
-          font-size: 13px;
-          letter-spacing: 2px;
-          min-width: 150px;
-        "></span>
-      </div>
+        font-size: 13px;
+        letter-spacing: 2px;
+        min-height: 16px;
+      "></span>
 
       <div style="
         display: flex;
@@ -311,21 +284,19 @@ function showUploadScreen() {
     </div>
   `;
 
-  // Style the upload screen container
+  // Style the upload screen container. Anchor to the top with padding (rather
+  // than vertically centering) so a full top-10 board scrolls instead of
+  // clipping the banner.
   uploadScreen.style.cssText = `
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     width: 100%;
+    padding: 40px 0;
+    box-sizing: border-box;
+    overflow-y: auto;
   `;
-
-  // Name entry — persist (sanitized) as the player types, reflecting the
-  // cleaned value back so what you see is what the board will store.
-  const nameInput = document.getElementById("name-input") as HTMLInputElement;
-  nameInput.addEventListener("change", () => {
-    nameInput.value = setPlayerName(nameInput.value);
-  });
 
   // Personal best, resolved from the (local) leaderboard store.
   const bestSpan = document.getElementById("personal-best")!;
@@ -338,7 +309,7 @@ function showUploadScreen() {
   // Top board — same data as the game-over panel, rendered in the DOM here.
   const boardEl = document.getElementById("leaderboard")!;
   const me = getPlayerToken();
-  fetchTop(5).then((entries) => {
+  fetchTop().then((entries) => {
     boardEl.innerHTML = entries.length ? leaderboardHTML(entries, me) : "";
   });
 

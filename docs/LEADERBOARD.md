@@ -56,6 +56,10 @@ interface RunSummary {
 - [x] `src/leaderboard.ts`: async `submitRun()` / `fetchTop()` backed by `localStorage`.
 - [x] Player-token UUID in `localStorage`.
 - [x] Show `PERSONAL BEST` in `drawGameOver()` and on the upload screen.
+- [x] Name flow = classic arcade: NO name on the landing screen. On death, if
+      the score places in the top 10, show a 3-initial entry (type or ↑↓ cycle,
+      ←→ move, ENTER confirm, ESC skip); non-placing runs skip it and reuse the
+      remembered initials. Board size / placement bar = `LEADERBOARD_SIZE` (10).
 - [x] Board render: rows of tiny heads + rank.
       Shown on BOTH the game-over screen (canvas) and the upload screen (DOM).
       (Rank rendered in Roboto Mono, not pixelfont — pixelfont has no digit

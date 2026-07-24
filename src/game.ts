@@ -48,10 +48,13 @@ import {
 import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
 import {
   submitRun,
+  qualifies,
   getPersonalBest,
   getPlayerToken,
   getPlayerName,
+  setPlayerName,
   makeThumbnail,
+  LEADERBOARD_SIZE,
   type RunSummary,
   type LeaderboardEntry,
 } from "./leaderboard";
@@ -75,6 +78,15 @@ let onUpload: () => void;
 let topBoard: LeaderboardEntry[] = [];
 let personalBest: RunSummary | null = null; // best run so far, including this one
 let isNewBest = false; // did this run set a new personal best?
+let placedRank = 0; // this run's rank on the board (0 if it didn't place)
+let priorBest: RunSummary | null = null; // best BEFORE this run, for isNewBest
+
+// Arcade initials entry, shown on game over only when the run places.
+const NAME_LEN = 3;
+const NAME_CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+let enteringName = false;
+let nameChars: string[] = [];
+let nameSlot = 0;
 
 export function startGame(
   image: HTMLImageElement,
@@ -115,6 +127,11 @@ export function startGame(
   topBoard = [];
   personalBest = null;
   isNewBest = false;
+  placedRank = 0;
+  priorBest = null;
+  enteringName = false;
+  nameChars = [];
+  nameSlot = 0;
 
   clearLasers();
   clearUltraLasers();
@@ -139,6 +156,13 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.key === " " || e.key.startsWith("Arrow")) {
     e.preventDefault();
   }
+  // Initials entry owns all input while it's open (Enter confirms, Esc skips).
+  if (enteringName) {
+    e.preventDefault();
+    handleNameEntryKey(e.key);
+    return;
+  }
+
   if (e.repeat) return;
   keys.add(e.key);
 
@@ -157,6 +181,40 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (e.key === "Escape") {
     cleanup();
     onUpload();
+  }
+}
+
+// Drive the 3-slot initials entry: type a character to set it and advance,
+// arrows to cycle/move, Enter to confirm, Esc to skip (keep remembered name).
+function handleNameEntryKey(key: string) {
+  if (key === "Enter") {
+    void finalizeRun(nameChars.join(""));
+    return;
+  }
+  if (key === "Escape") {
+    void finalizeRun(getPlayerName()); // skip — keep the remembered name
+    return;
+  }
+  if (key === "ArrowLeft" || key === "Backspace") {
+    nameSlot = Math.max(0, nameSlot - 1);
+    return;
+  }
+  if (key === "ArrowRight") {
+    nameSlot = Math.min(NAME_LEN - 1, nameSlot + 1);
+    return;
+  }
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const step = key === "ArrowUp" ? 1 : -1;
+    const idx = NAME_CHARSET.indexOf(nameChars[nameSlot]);
+    const next = (idx + step + NAME_CHARSET.length) % NAME_CHARSET.length;
+    nameChars[nameSlot] = NAME_CHARSET[next];
+    return;
+  }
+  // Direct typing of a valid character.
+  const ch = key.length === 1 ? key.toUpperCase() : "";
+  if (ch && NAME_CHARSET.includes(ch)) {
+    nameChars[nameSlot] = ch;
+    if (nameSlot < NAME_LEN - 1) nameSlot++;
   }
 }
 
@@ -206,15 +264,37 @@ function recordKill(basePoints: number, killCount: number) {
   if (state.combo > state.maxCombo) state.maxCombo = state.combo;
 }
 
-// End the run and submit its summary to the leaderboard exactly once. Async and
-// fire-and-forget: drawGameOver renders immediately and picks up topBoard /
-// personalBest on a later frame once the (currently local) store resolves.
+// End the run. If the score places on the board, open the arcade initials
+// entry and defer submission until the player confirms (or skips); otherwise
+// submit straight away under the remembered name. Async and fire-and-forget —
+// drawGameOver renders each frame off the module state these set.
 async function endGame() {
-  if (state.gameOver) return; // guard against double-submit
+  if (state.gameOver) return; // guard against re-entry
   state.gameOver = true;
 
+  // Stored best BEFORE this run, so finalizeRun can flag a new record.
+  priorBest = await getPersonalBest();
+
+  if (await qualifies(state.score)) {
+    // Seed the initials from the remembered name so returning players can just
+    // hit Enter; fall back to the default placeholder.
+    const seed = (getPlayerName().replace(/[^A-Z0-9]/gi, "").toUpperCase() + "AAA").slice(0, NAME_LEN);
+    nameChars = seed.split("");
+    nameSlot = 0;
+    enteringName = true;
+  } else {
+    await finalizeRun(getPlayerName());
+  }
+}
+
+// Build and submit this run's summary under `name`, then populate the board
+// state the game-over screen reads. Also remembers the name for next time.
+async function finalizeRun(name: string) {
+  enteringName = false;
+  const clean = setPlayerName(name);
+
   const summary: RunSummary = {
-    name: getPlayerName(),
+    name: clean,
     score: state.score,
     kills: state.kills,
     maxCombo: state.maxCombo,
@@ -225,13 +305,11 @@ async function endGame() {
     ts: Date.now(),
   };
 
-  // Compare against the stored best BEFORE submitting to flag a new record.
-  const prior = await getPersonalBest();
-  isNewBest = prior === null || summary.score > prior.score;
-
+  isNewBest = priorBest === null || summary.score > priorBest.score;
   topBoard = await submitRun(summary);
   personalBest =
     topBoard.find((r) => r.playerToken === summary.playerToken) ?? summary;
+  placedRank = topBoard.find((r) => r.ts === summary.ts)?.rank ?? 0;
 }
 
 function loop() {
@@ -496,11 +574,11 @@ function drawBanner(c: CanvasRenderingContext2D, art: string, topY: number) {
 
 // ── Leaderboard panel (game-over screen) ─────────────────────────────
 
-const LB_MAX_ROWS = 5;
-const LB_ROW_H = 44;
-const LB_HEAD = 34;
+const LB_MAX_ROWS = LEADERBOARD_SIZE;
+const LB_ROW_H = 34;
+const LB_HEAD = 26;
 const LB_WIDTH = 460;
-const LB_HEADING_H = 22;
+const LB_HEADING_H = 20;
 const LB_HEADING_GAP = 10;
 
 // Decoded avatar thumbnails, cached by data URL so we build each Image once.
@@ -557,12 +635,12 @@ function drawLeaderboard(
 
     // Rank
     c.textAlign = "left";
-    c.font = "bold 18px 'Roboto Mono', monospace";
+    c.font = "bold 14px 'Roboto Mono', monospace";
     c.fillStyle = entry.rank === 1 ? BANNER_COLOR : "#778";
     c.fillText(`#${entry.rank}`, left + 8, mid);
 
     // Avatar head (or a silhouette placeholder)
-    const headX = left + 56;
+    const headX = left + 52;
     const headY = mid - LB_HEAD / 2;
     const img = getThumbImage(entry.avatarThumb);
     if (img) {
@@ -576,13 +654,13 @@ function drawLeaderboard(
 
     // Name
     c.textAlign = "left";
-    c.font = "bold 15px 'Roboto Mono', monospace";
+    c.font = "bold 14px 'Roboto Mono', monospace";
     c.fillStyle = isMe ? "#9df" : "#ccd";
-    c.fillText(entry.name, headX + LB_HEAD + 16, mid);
+    c.fillText(entry.name, headX + LB_HEAD + 14, mid);
 
     // Score, right-aligned
     c.textAlign = "right";
-    c.font = "bold 15px 'Roboto Mono', monospace";
+    c.font = "bold 14px 'Roboto Mono', monospace";
     c.fillStyle = "#fff";
     c.fillText(entry.score.toString().padStart(6, "0"), left + LB_WIDTH - 8, mid);
 
@@ -592,7 +670,80 @@ function drawLeaderboard(
   c.restore();
 }
 
+// The arcade "NEW HIGH SCORE — enter your initials" screen, shown while
+// enteringName. Three slots; the active one blinks with a caret.
+function drawNameEntry() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = BG_COLOR;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+  const titleH = bannerHeight(GAME_OVER_ASCII);
+  const promptH = 20;
+  const slotsH = 64;
+  const hintH = 16;
+  const gapA = 28; // banner → prompt
+  const gapB = 28; // prompt → slots
+  const gapC = 28; // slots → hint
+  const totalH = titleH + gapA + promptH + gapB + slotsH + gapC + hintH;
+  const topY = (CANVAS_H - totalH) / 2;
+
+  drawBanner(ctx, GAME_OVER_ASCII, topY);
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  const promptY = topY + titleH + gapA;
+  ctx.font = "bold 18px 'Roboto Mono', monospace";
+  ctx.fillStyle = BANNER_COLOR;
+  ctx.fillText("★ NEW HIGH SCORE ★  ENTER YOUR INITIALS", CANVAS_W / 2, promptY);
+
+  // Three character slots, evenly spaced around center.
+  const slotsY = promptY + promptH + gapB;
+  const slotW = 56;
+  const slotGap = 24;
+  const totalW = NAME_LEN * slotW + (NAME_LEN - 1) * slotGap;
+  let sx = CANVAS_W / 2 - totalW / 2;
+  const blink = Math.floor(state.frame / 20) % 2 === 0;
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < NAME_LEN; i++) {
+    const active = i === nameSlot;
+    // Slot underline
+    ctx.strokeStyle = active ? BANNER_COLOR : "#445";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, slotsY + slotsH);
+    ctx.lineTo(sx + slotW, slotsY + slotsH);
+    ctx.stroke();
+    // Character (hide on blink-off for the active slot to read as a caret)
+    if (!(active && !blink)) {
+      ctx.font = "bold 48px 'Roboto Mono', monospace";
+      ctx.fillStyle = active ? "#fff" : "#aab";
+      ctx.textAlign = "center";
+      ctx.fillText(nameChars[i] ?? "A", sx + slotW / 2, slotsY + slotsH / 2);
+    }
+    sx += slotW + slotGap;
+  }
+
+  const hintY = slotsY + slotsH + gapC;
+  ctx.font = "13px 'Roboto Mono', monospace";
+  ctx.fillStyle = "#778";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(
+    "TYPE  or  ↑↓ CYCLE  ←→ MOVE   —   ENTER to confirm  |  ESC to skip",
+    CANVAS_W / 2,
+    hintY
+  );
+  ctx.restore();
+}
+
 function drawGameOver() {
+  if (enteringName) {
+    drawNameEntry();
+    return;
+  }
+
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // Dim overlay
   ctx.fillStyle = BG_COLOR;
@@ -628,13 +779,16 @@ function drawGameOver() {
     scoreY
   );
 
-  // Personal best (or a "new best" flourish). Null until the async submit
-  // resolves — a frame or two after game over — so guard it.
+  // A status line: new record > board placement > plain personal best. Null
+  // until the async submit resolves a frame or two after game over, so guard.
   const bestY = scoreY + scoreH + gapBest;
   ctx.font = "bold 16px 'Roboto Mono', monospace";
   if (isNewBest) {
     ctx.fillStyle = BANNER_COLOR;
     ctx.fillText("★ NEW PERSONAL BEST ★", CANVAS_W / 2, bestY);
+  } else if (placedRank > 0) {
+    ctx.fillStyle = BANNER_COLOR;
+    ctx.fillText(`YOU PLACED #${placedRank}`, CANVAS_W / 2, bestY);
   } else if (personalBest) {
     ctx.fillStyle = "#6cf";
     ctx.fillText(
