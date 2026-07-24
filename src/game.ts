@@ -55,6 +55,7 @@ import {
   type RunSummary,
   type LeaderboardEntry,
 } from "./leaderboard";
+import { LASER_CORE, LASER_MID, LASER_GLOW } from "./types";
 import type { Player } from "./types";
 import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
 
@@ -494,22 +495,158 @@ function drawBanner(c: CanvasRenderingContext2D, art: string, topY: number) {
   c.restore();
 }
 
+// ── Leaderboard panel (game-over screen) ─────────────────────────────
+
+const LB_MAX_ROWS = 5;
+const LB_ROW_H = 44;
+const LB_HEAD = 34;
+const LB_WIDTH = 460;
+const LB_HEADING_H = 22;
+const LB_HEADING_GAP = 10;
+
+// Decoded avatar thumbnails, cached by data URL so we build each Image once.
+const thumbCache = new Map<string, HTMLImageElement>();
+
+function getThumbImage(dataUrl: string): HTMLImageElement | null {
+  if (!dataUrl) return null;
+  let img = thumbCache.get(dataUrl);
+  if (!img) {
+    img = new Image();
+    img.src = dataUrl;
+    thumbCache.set(dataUrl, img);
+  }
+  return img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+function leaderboardHeight(rows: number): number {
+  if (rows <= 0) return 0;
+  return LB_HEADING_H + LB_HEADING_GAP + Math.min(rows, LB_MAX_ROWS) * LB_ROW_H;
+}
+
+// The top-N board: a heading, then one row per player — rank, avatar head,
+// name, score. The #1 head fires a pair of animated lasers.
+function drawLeaderboard(
+  c: CanvasRenderingContext2D,
+  centerX: number,
+  topY: number,
+  entries: LeaderboardEntry[]
+) {
+  const me = getPlayerToken();
+  const left = centerX - LB_WIDTH / 2;
+
+  c.save();
+  c.textBaseline = "middle";
+
+  // Heading
+  c.textAlign = "center";
+  c.font = "bold 13px 'Roboto Mono', monospace";
+  c.fillStyle = "#556";
+  c.fillText("— TOP HEADS —", centerX, topY + LB_HEADING_H / 2);
+
+  const rows = entries.slice(0, LB_MAX_ROWS);
+  let rowY = topY + LB_HEADING_H + LB_HEADING_GAP;
+
+  for (const entry of rows) {
+    const mid = rowY + LB_ROW_H / 2;
+    const isMe = entry.playerToken === me;
+
+    // Row background — highlight the current player's row.
+    if (isMe) {
+      c.fillStyle = "rgba(102,204,255,0.10)";
+      c.fillRect(left, rowY + 2, LB_WIDTH, LB_ROW_H - 4);
+    }
+
+    // Rank
+    c.textAlign = "left";
+    c.font = "bold 18px 'Roboto Mono', monospace";
+    c.fillStyle = entry.rank === 1 ? BANNER_COLOR : "#778";
+    c.fillText(`#${entry.rank}`, left + 8, mid);
+
+    // Avatar head (or a silhouette placeholder)
+    const headX = left + 56;
+    const headY = mid - LB_HEAD / 2;
+    const img = getThumbImage(entry.avatarThumb);
+    if (img) {
+      c.drawImage(img, headX, headY, LB_HEAD, LB_HEAD);
+    } else {
+      c.fillStyle = "#223";
+      c.beginPath();
+      c.arc(headX + LB_HEAD / 2, mid, LB_HEAD / 2, 0, Math.PI * 2);
+      c.fill();
+    }
+
+    // #1 fires lasers from its eyes.
+    if (entry.rank === 1) {
+      drawBoardLasers(c, mid, headX + LB_HEAD);
+    }
+
+    // Name
+    c.textAlign = "left";
+    c.font = "bold 15px 'Roboto Mono', monospace";
+    c.fillStyle = isMe ? "#9df" : "#ccd";
+    c.fillText(entry.name, headX + LB_HEAD + 16, mid);
+
+    // Score, right-aligned
+    c.textAlign = "right";
+    c.font = "bold 15px 'Roboto Mono', monospace";
+    c.fillStyle = "#fff";
+    c.fillText(entry.score.toString().padStart(6, "0"), left + LB_WIDTH - 8, mid);
+
+    rowY += LB_ROW_H;
+  }
+
+  c.restore();
+}
+
+// A short animated laser pair streaking off the #1 head, reusing the in-game
+// laser gradient. Length pulses with the frame counter.
+function drawBoardLasers(
+  c: CanvasRenderingContext2D,
+  eyeY: number,
+  startX: number
+) {
+  const pulse = 0.6 + 0.4 * Math.sin(state.frame * 0.15);
+  const len = 26 * pulse;
+  const grad = c.createLinearGradient(startX, 0, startX + len, 0);
+  grad.addColorStop(0, LASER_CORE);
+  grad.addColorStop(0.4, LASER_MID);
+  grad.addColorStop(1, LASER_GLOW);
+
+  c.save();
+  c.strokeStyle = grad;
+  c.lineCap = "round";
+  c.shadowColor = LASER_GLOW;
+  c.shadowBlur = 8;
+  for (const dy of [-5, 5]) {
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(startX, eyeY + dy);
+    c.lineTo(startX + len, eyeY + dy);
+    c.stroke();
+  }
+  c.restore();
+}
+
 function drawGameOver() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // Dim overlay
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Banner, score, personal-best and instructions form one vertically-centered
-  // stack — same visual flow as the upload / align / controls screens.
+  // Banner, score, personal-best, leaderboard and instructions form one
+  // vertically-centered stack — same visual flow as the other screens.
   const goH = bannerHeight(GAME_OVER_ASCII);
   const scoreH = 24;
   const bestH = 18;
   const instrH = 16;
+  const boardH = leaderboardHeight(topBoard.length);
   const gap1 = 32; // between banner and score
   const gapBest = 12; // between score and personal-best
-  const gap2 = 24; // between personal-best and instructions
-  const totalH = goH + gap1 + scoreH + gapBest + bestH + gap2 + instrH;
+  const gapBoard = 28; // between personal-best and leaderboard
+  const gap2 = 24; // between leaderboard and instructions
+  const totalH =
+    goH + gap1 + scoreH + gapBest + bestH +
+    (boardH ? gapBoard + boardH : 0) + gap2 + instrH;
   const topY = (CANVAS_H - totalH) / 2;
 
   drawBanner(ctx, GAME_OVER_ASCII, topY);
@@ -542,12 +679,23 @@ function drawGameOver() {
     );
   }
 
+  ctx.restore();
+
+  // Leaderboard panel (once the async submit has populated topBoard).
+  const boardY = bestY + bestH + gapBoard;
+  if (boardH) {
+    drawLeaderboard(ctx, CANVAS_W / 2, boardY, topBoard);
+  }
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
   ctx.font = "16px 'Roboto Mono', monospace";
   ctx.fillStyle = "#888";
   ctx.fillText(
     "ENTER to restart  |  ESC for upload screen",
     CANVAS_W / 2,
-    bestY + bestH + gap2
+    boardY + (boardH ? boardH + gap2 : 0)
   );
   ctx.restore();
 }

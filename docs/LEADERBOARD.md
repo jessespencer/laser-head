@@ -52,12 +52,14 @@ interface RunSummary {
       (pure refactor; where kill telemetry hooks in).
 - [x] Extend `GameState` (`types.ts`) with `kills` + `maxCombo` telemetry
       (`framesSurvived` is already tracked as `state.frame`; the summary builder reads it).
-- [ ] Generate 64×64 WebP thumbnail off `cropImage()` (`main.ts:557`).
-- [ ] `src/leaderboard.ts`: async `submitRun()` / `fetchTop()` backed by `localStorage`.
-- [ ] Player-token UUID in `localStorage`.
-- [ ] Show `PERSONAL BEST` in `drawGameOver()` (`game.ts:451`) and on upload screen.
-- [ ] Board render: rows of tiny heads + rank in pixelfont; #1 head fires lasers.
-- [ ] Local top-10 board, deduped to one best row per player token.
+- [x] Generate 64×64 WebP thumbnail (`makeThumbnail` in `leaderboard.ts`).
+- [x] `src/leaderboard.ts`: async `submitRun()` / `fetchTop()` backed by `localStorage`.
+- [x] Player-token UUID in `localStorage`.
+- [x] Show `PERSONAL BEST` in `drawGameOver()` and on the upload screen.
+- [x] Board render: rows of tiny heads + rank; #1 head fires lasers.
+      (Rank rendered in Roboto Mono, not pixelfont — pixelfont has no digit
+      glyphs yet; see parking lot.)
+- [x] Local top board (top 5 shown), deduped to one best row per player token.
 
 ### Tier 1 — global board, names only (needs backend)
 - [ ] Pick backend (Supabase = least effort; Cloudflare Workers if we want
