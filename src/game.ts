@@ -708,20 +708,18 @@ function drawNameEntry() {
   ctx.textBaseline = "middle";
   for (let i = 0; i < NAME_LEN; i++) {
     const active = i === nameSlot;
-    // Slot underline
-    ctx.strokeStyle = active ? BANNER_COLOR : "#445";
+    // Slot underline — the active slot's blinks to signal "editing here".
+    ctx.strokeStyle = active ? (blink ? BANNER_COLOR : "#663") : "#445";
     ctx.lineWidth = active ? 3 : 2;
     ctx.beginPath();
     ctx.moveTo(sx, slotsY + slotsH);
     ctx.lineTo(sx + slotW, slotsY + slotsH);
     ctx.stroke();
-    // Character (hide on blink-off for the active slot to read as a caret)
-    if (!(active && !blink)) {
-      ctx.font = "bold 48px 'Roboto Mono', monospace";
-      ctx.fillStyle = active ? "#fff" : "#aab";
-      ctx.textAlign = "center";
-      ctx.fillText(nameChars[i] ?? "A", sx + slotW / 2, slotsY + slotsH / 2);
-    }
+    // Character — always visible; the active one is highlighted white.
+    ctx.font = "bold 48px 'Roboto Mono', monospace";
+    ctx.fillStyle = active ? "#fff" : "#aab";
+    ctx.textAlign = "center";
+    ctx.fillText(nameChars[i] ?? "A", sx + slotW / 2, slotsY + slotsH / 2);
     sx += slotW + slotGap;
   }
 
