@@ -2,7 +2,6 @@ import { removeBackground as imglyRemoveBackground } from "@imgly/background-rem
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import {
-  getPersonalBest,
   getPlayerToken,
   fetchTop,
   type LeaderboardEntry,
@@ -148,14 +147,6 @@ function showUploadScreen() {
         margin: 0;
       ">Shoot lasers from your eyes.</p>
 
-      <span id="personal-best" style="
-        color: #6cf;
-        font-family: 'Roboto Mono', monospace;
-        font-size: 13px;
-        letter-spacing: 2px;
-        min-height: 16px;
-      "></span>
-
       <div style="
         display: flex;
         gap: 32px;
@@ -297,14 +288,6 @@ function showUploadScreen() {
     box-sizing: border-box;
     overflow-y: auto;
   `;
-
-  // Personal best, resolved from the (local) leaderboard store.
-  const bestSpan = document.getElementById("personal-best")!;
-  getPersonalBest().then((best) => {
-    bestSpan.textContent = best
-      ? `BEST ${best.score.toString().padStart(6, "0")}`
-      : "";
-  });
 
   // Top board — same data as the game-over panel, rendered in the DOM here.
   const boardEl = document.getElementById("leaderboard")!;
