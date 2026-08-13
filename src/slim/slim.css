@@ -1,0 +1,306 @@
+/* ── Laser Head Slim ────────────────────────────────────────────────────────
+   The banner that docks above a prompt field, and the 8-bit screen it opens.
+
+   Self-contained on purpose: no design-system tokens, no framework, no
+   external font. Everything below is either a `--lh-slim-*` custom property
+   you may override from the host, or a value derived from one. Drop this file
+   and `src/slim/` into any project and the mini game looks like this; set the
+   properties on `:root` (or on any ancestor) and it looks like yours.
+
+   Every class is prefixed `lh-slim-` so nothing here can collide with a host
+   app's own styles — this package never touches a bare element selector
+   outside its own subtree. */
+
+.lh-slim-banner,
+.lh-slim-dialog {
+  /* Chrome — the parts that sit in the host's page and should match it. */
+  --lh-slim-ink: #101322;
+  --lh-slim-ink-dim: #5a6178;
+  --lh-slim-surface: #eef2ff;
+  --lh-slim-panel: #ffffff;
+  --lh-slim-border: #c8d0e8;
+  --lh-slim-radius: 6px;
+  --lh-slim-gap: 8px;
+  --lh-slim-font:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --lh-slim-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --lh-slim-accent: #ff3c14;
+}
+
+/* The host may set `data-lh-slim-theme="dark"` on any ancestor to force it;
+   otherwise the OS preference decides. Both land on the same variables, so a
+   host that overrides them wins in either mode. */
+@media (prefers-color-scheme: dark) {
+  .lh-slim-banner,
+  .lh-slim-dialog {
+    --lh-slim-ink: #e8ecf8;
+    --lh-slim-ink-dim: #98a1bb;
+    --lh-slim-surface: #191d2e;
+    --lh-slim-panel: #10131f;
+    --lh-slim-border: #2f3752;
+  }
+}
+
+[data-lh-slim-theme="dark"] .lh-slim-banner,
+[data-lh-slim-theme="dark"] .lh-slim-dialog {
+  --lh-slim-ink: #e8ecf8;
+  --lh-slim-ink-dim: #98a1bb;
+  --lh-slim-surface: #191d2e;
+  --lh-slim-panel: #10131f;
+  --lh-slim-border: #2f3752;
+}
+
+[data-lh-slim-theme="light"] .lh-slim-banner,
+[data-lh-slim-theme="light"] .lh-slim-dialog {
+  --lh-slim-ink: #101322;
+  --lh-slim-ink-dim: #5a6178;
+  --lh-slim-surface: #eef2ff;
+  --lh-slim-panel: #ffffff;
+  --lh-slim-border: #c8d0e8;
+}
+
+/* ── the banner ────────────────────────────────────────────────────────────
+   "Insert coin?" — the strip that appears above the prompt field a couple of
+   minutes into a long wait.
+
+   It docks directly above the composer because it is about what to do NEXT,
+   so it belongs where the eye already is before typing. It is informative,
+   not a status: nothing is wrong, a long job is usually a big job being done
+   properly. Nothing here interrupts, blocks or steals focus. */
+.lh-slim-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--lh-slim-gap);
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 12px;
+  margin-block-end: var(--lh-slim-gap);
+  border: 1px solid var(--lh-slim-border);
+  border-radius: var(--lh-slim-radius);
+  background: var(--lh-slim-surface);
+  color: var(--lh-slim-ink);
+  font-family: var(--lh-slim-font);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.lh-slim-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The player's own head, at 2 device pixels per sprite pixel. Never smoothed
+   — the whole point is that it reads as pixels. */
+.lh-slim-banner-head {
+  flex: none;
+  image-rendering: pixelated;
+  animation: lh-slim-bob 1.2s steps(2, end) infinite;
+}
+
+@keyframes lh-slim-bob {
+  0%,
+  49% {
+    transform: translateY(0);
+  }
+  50%,
+  100% {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-slim-banner-head {
+    animation: none;
+  }
+}
+
+/* ── buttons ───────────────────────────────────────────────────────────────
+   Two weights, one shape. Deliberately plain: a host with its own button
+   component should render that instead and pass the element in (see
+   `mountBanner`'s `renderPlayButton` option). */
+.lh-slim-btn {
+  flex: none;
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: var(--lh-slim-radius);
+  border: 1px solid var(--lh-slim-border);
+  background: var(--lh-slim-panel);
+  color: var(--lh-slim-ink);
+}
+
+.lh-slim-btn:hover {
+  border-color: var(--lh-slim-ink-dim);
+}
+
+.lh-slim-btn:focus-visible {
+  outline: 2px solid var(--lh-slim-accent);
+  outline-offset: 1px;
+}
+
+.lh-slim-btn-primary {
+  background: var(--lh-slim-accent);
+  border-color: var(--lh-slim-accent);
+  color: #fff;
+}
+
+.lh-slim-btn-icon {
+  padding: 6px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--lh-slim-ink-dim);
+}
+
+.lh-slim-btn-icon:hover {
+  color: var(--lh-slim-ink);
+}
+
+/* ── the modal ─────────────────────────────────────────────────────────────
+   A native <dialog>, opened with showModal(): the focus trap, the Escape key,
+   the inert background and the top layer all come from the platform, which is
+   the whole reason this package needs no dependency to be a well-behaved
+   modal. */
+.lh-slim-dialog {
+  padding: 0;
+  border: 1px solid var(--lh-slim-border);
+  border-radius: 10px;
+  background: var(--lh-slim-panel);
+  color: var(--lh-slim-ink);
+  font-family: var(--lh-slim-font);
+  width: min(720px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.lh-slim-dialog::backdrop {
+  background: rgb(4 6 15 / 55%);
+}
+
+.lh-slim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lh-slim-gap);
+  padding: 16px 16px 8px;
+}
+
+.lh-slim-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.lh-slim-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  padding: 0 16px 16px;
+}
+
+/* The line the header has no slot for: what the keys do while the job is
+   still running, and that it has finished when it has. `role=status` so the
+   job finishing is announced to a screen reader mid-run rather than only
+   being visible. */
+.lh-slim-status {
+  color: var(--lh-slim-ink-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── the play field, and the arcade palette it is painted with ─────────────
+   This surface deliberately does NOT follow the host's theme: a cabinet is
+   dark, the whole read of the thing is a lit screen in an unlit room, and on
+   a white field the lasers — the only bright thing in the game — would be
+   invisible. So the hues are a named layer of their own, declared once here
+   and sampled from the canvas at paint time. The renderer carries no colour
+   literal at all, which is what lets a host retheme the field by setting
+   these six properties and nothing else. */
+.lh-slim-canvas {
+  --lh-arcade-void: #05060f;
+  --lh-arcade-ink: #e8f2ff;
+  --lh-arcade-dim: #4d5a7a;
+  /* Laser Head's own beam colour — the one warm hue on the field. */
+  --lh-arcade-laser: #ff3c14;
+  --lh-arcade-scout: #4bf58a;
+  --lh-arcade-drone: #ffd447;
+  --lh-arcade-tank: #ff6ae6;
+
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  /* No border. The screen wrapper draws the ONE edge this surface has — a
+     border here as well reads as a double frame at the corners, where the
+     canvas's own radius and the wrapper's sit a pixel apart. */
+  border-radius: var(--lh-slim-radius);
+  background: var(--lh-arcade-void);
+}
+
+/* The CRT. A canvas is a replaced element and cannot carry a pseudo-element,
+   so the scanlines and the vignette ride a wrapper directly over it —
+   pointer-events off, because the field below is the thing being played. */
+.lh-slim-screen {
+  position: relative;
+  display: block;
+  line-height: 0;
+}
+
+.lh-slim-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--lh-slim-radius);
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 22%) 0 1px,
+    transparent 1px 3px
+  );
+  box-shadow: inset 0 0 24px rgb(0 0 0 / 55%);
+}
+
+/* Dark mode: the cabinet joins the page instead of floating on it. On a light
+   panel the field is a black rectangle with obvious edges; on a dark one it is
+   a black rectangle with none, so it gets a hairline ring for the edge the
+   light theme got for free from contrast, and the vignette drops to a third —
+   55% of black over an already-dark surface reads as a smudge rather than as
+   a curved screen. */
+@media (prefers-color-scheme: dark) {
+  .lh-slim-screen::after {
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 8%),
+      inset 0 0 24px rgb(0 0 0 / 30%);
+  }
+}
+
+[data-lh-slim-theme="dark"] .lh-slim-screen::after {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 8%),
+    inset 0 0 24px rgb(0 0 0 / 30%);
+}
+
+.lh-slim-keys {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--lh-slim-gap);
+  color: var(--lh-slim-ink-dim);
+  font-size: 12px;
+}
+
+.lh-slim-keys kbd {
+  font-family: var(--lh-slim-mono);
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--lh-slim-border);
+  border-radius: 3px;
+}
