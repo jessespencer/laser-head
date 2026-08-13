@@ -3,201 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LASER HEAD SLIM</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+    <title>LASER HEAD MINI</title>
     <style>
-      /* Page chrome only. Everything the mini game itself needs lives in
-         src/slim/slim.css — this file is the host app standing in for yours. */
-      :root {
-        color-scheme: light dark;
-        --host-ink: #101322;
-        --host-dim: #5a6178;
-        --host-bg: #f4f6fd;
-        --host-panel: #fff;
-        --host-border: #c8d0e8;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --host-ink: #e8ecf8;
-          --host-dim: #98a1bb;
-          --host-bg: #0a0c16;
-          --host-panel: #10131f;
-          --host-border: #2f3752;
-        }
-      }
       body {
         margin: 0;
         min-height: 100vh;
-        background: var(--host-bg);
-        color: var(--host-ink);
-        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-          sans-serif;
+        background: light-dark(#f4f6fd, #0a0c16);
+        color-scheme: light dark;
         display: flex;
+        align-items: center;
         justify-content: center;
-        padding: 32px 16px 64px;
+        padding: 24px;
         box-sizing: border-box;
       }
-      .wrap {
+      #banner-slot {
         width: 100%;
         max-width: 720px;
-      }
-      h1 {
-        font-family: "Roboto Mono", monospace;
-        font-size: 20px;
-        letter-spacing: 0.08em;
-        margin: 0 0 4px;
-      }
-      .lede {
-        color: var(--host-dim);
-        font-size: 14px;
-        line-height: 1.5;
-        margin: 0 0 24px;
-      }
-      .lede code {
-        font-family: "Roboto Mono", monospace;
-        font-size: 12px;
-      }
-      .chat {
-        background: var(--host-panel);
-        border: 1px solid var(--host-border);
-        border-radius: 10px;
-        padding: 16px;
-      }
-      .transcript {
-        min-height: 120px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        font-size: 14px;
-        line-height: 1.5;
-        margin-bottom: 16px;
-      }
-      .msg {
-        display: flex;
-        gap: 8px;
-      }
-      .msg b {
-        font-family: "Roboto Mono", monospace;
-        font-size: 12px;
-        color: var(--host-dim);
-        flex: none;
-        width: 44px;
-        padding-top: 2px;
-      }
-      .composer {
-        border: 1px solid var(--host-border);
-        border-radius: 8px;
-        padding: 8px;
-        display: flex;
-        gap: 8px;
-        align-items: flex-end;
-      }
-      .composer textarea {
-        flex: 1;
-        border: 0;
-        resize: none;
-        background: transparent;
-        color: inherit;
-        font: inherit;
-        font-size: 14px;
-        outline: none;
-        min-height: 44px;
-      }
-      .composer button {
-        appearance: none;
-        cursor: pointer;
-        font: inherit;
-        font-size: 13px;
-        padding: 8px 14px;
-        border-radius: 6px;
-        border: 1px solid var(--host-border);
-        background: var(--host-ink);
-        color: var(--host-bg);
-      }
-      .composer button:disabled {
-        opacity: 0.45;
-        cursor: default;
-      }
-      .devbar {
-        margin-top: 16px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        font-size: 12px;
-        color: var(--host-dim);
-      }
-      .devbar button {
-        appearance: none;
-        cursor: pointer;
-        font: inherit;
-        padding: 4px 8px;
-        border-radius: 5px;
-        border: 1px dashed var(--host-border);
-        background: transparent;
-        color: inherit;
-      }
-      .devbar button:disabled {
-        opacity: 0.4;
-        cursor: default;
-      }
-      .devbar b {
-        font-family: "Roboto Mono", monospace;
-        font-weight: 400;
-        color: var(--host-ink);
-      }
-      a {
-        color: inherit;
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <h1>LASER HEAD SLIM</h1>
-      <p class="lede">
-        The mini game, isolated: a banner above the prompt field, a modal, and a
-        small canvas. No framework, no dependencies — the whole package is
-        <code>src/slim/</code>. This page is a stand-in host, not part of it.
-        The full-screen game is <a href="./">over here</a>.
-      </p>
-
-      <div class="chat">
-        <div class="transcript" id="transcript">
-          <div class="msg">
-            <b>you</b><span>Refactor the payments module and run the suite.</span>
-          </div>
-        </div>
-        <!-- The banner docks here: directly above the prompt field, inside the
-             composer's own stack, which is why it carries its own bottom
-             margin rather than relying on a gap from this layout. -->
-        <div id="banner-slot"></div>
-        <div class="composer">
-          <textarea
-            id="prompt"
-            placeholder="Ask for anything…"
-            aria-label="Prompt"
-          ></textarea>
-          <button id="send" type="button">Send</button>
-        </div>
-      </div>
-
-      <div class="devbar">
-        <span>Stand-in host controls:</span>
-        <button id="skip" type="button" disabled>Skip the 2-minute wait</button>
-        <!-- Deliberately delayed. An open modal makes the page behind it
-             inert, so this button is unclickable mid-run — which is the point:
-             a real job lands on its own clock, and the game has to hear about
-             it without anyone touching the host. Click it, then insert a coin,
-             and watch the status line move while you are still playing. -->
-        <button id="finish" type="button" disabled>Land the job in 5s</button>
-        <span>state: <b id="state">idle</b></span>
-      </div>
-    </div>
+    <div id="banner-slot"></div>
     <script type="module" src="/src/slim-page.ts"></script>
   </body>
 </html>
