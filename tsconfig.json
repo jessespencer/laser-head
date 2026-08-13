@@ -14,5 +14,10 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // The slim package's tests import node:test / node:assert, which would drag
+  // @types/node into a build that has never needed it. They are run by
+  // `pnpm test` through Node's own type stripping instead — which is also the
+  // only way to run them, since nothing here emits.
+  "exclude": ["src/**/*.test.ts"]
 }
