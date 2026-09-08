@@ -1,4 +1,3 @@
-import { removeBackground as imglyRemoveBackground } from "@imgly/background-removal";
 import { startGame } from "./game";
 import { PLAYER_SIZE } from "./types";
 import {
@@ -88,6 +87,7 @@ function asciiTitle(art: string): string {
 // ── Background Removal ─────────────────────────────────────────────
 
 async function removeBackground(img: HTMLImageElement): Promise<HTMLImageElement> {
+  const { removeBackground: imglyRemoveBackground } = await import("@imgly/background-removal");
   const blob = await imglyRemoveBackground(img.src, {
     model: "isnet_fp16",
     output: { format: "image/png" },
@@ -98,8 +98,8 @@ async function removeBackground(img: HTMLImageElement): Promise<HTMLImageElement
   const url = URL.createObjectURL(blob);
   return new Promise((resolve, reject) => {
     const result = new Image();
-    result.onload = () => resolve(result);
-    result.onerror = reject;
+    result.onload = () => { URL.revokeObjectURL(url); resolve(result); };
+    result.onerror = (event) => { URL.revokeObjectURL(url); reject(event); };
     result.src = url;
   });
 }
@@ -305,6 +305,7 @@ function showUploadScreen() {
 
   // Play with default head — entire container is clickable
   const playDefault = () => {
+    selectedSector = 1;
     const img = new Image();
     img.onload = () => {
       loadedImage = img;
@@ -313,11 +314,21 @@ function showUploadScreen() {
     img.src = `${import.meta.env.BASE_URL}default-head.png`;
   };
   defaultZone.addEventListener("click", playDefault);
+  const refineryButton=document.createElement('button');
+  refineryButton.id='refinery-btn';refineryButton.textContent='SECTOR 02 · REFINERY';
+  refineryButton.style.cssText="font: bold 11px 'Roboto Mono',monospace;color:#b7efcf;background:#142d29;border:1px solid #537f6f;border-radius:6px;padding:12px 8px;cursor:pointer;width:100%";
+  defaultZone.appendChild(refineryButton);
+  refineryButton.addEventListener('click',(e)=>{
+    e.stopPropagation();selectedSector=2;
+    if(userUploadedImage){loadedImage=userUploadedImage;showControlsScreen(()=>launchGame());return;}
+    const img=new Image();img.onload=()=>{loadedImage=img;showControlsScreen(()=>launchGame());};img.src=`${import.meta.env.BASE_URL}default-head.png`;
+  });
 
   // Play with previously uploaded head
   const playUploadedBtn = document.getElementById("play-uploaded-btn");
   if (playUploadedBtn) {
     playUploadedBtn.addEventListener("click", () => {
+      selectedSector = 1;
       loadedImage = userUploadedImage;
       showControlsScreen(() => launchGame());
     });
@@ -544,17 +555,18 @@ function showAlignScreen(img: HTMLImageElement) {
     alignCanvas.style.cursor = "grabbing";
   });
 
+  const alignmentEvents = new AbortController();
   window.addEventListener("mousemove", (e) => {
     if (!dragging) return;
     offsetX = startOffsetX + (e.clientX - dragStartX);
     offsetY = startOffsetY + (e.clientY - dragStartY);
     draw();
-  });
+  }, { signal: alignmentEvents.signal });
 
   window.addEventListener("mouseup", () => {
     dragging = false;
     alignCanvas.style.cursor = "grab";
-  });
+  }, { signal: alignmentEvents.signal });
 
   // ── Scroll to zoom ──
 
@@ -615,6 +627,7 @@ function showAlignScreen(img: HTMLImageElement) {
   document.getElementById("lock-in-btn")!.addEventListener("click", () => {
     const cropped = cropImage(img, offsetX, offsetY, scale);
     cropped.onload = () => {
+      alignmentEvents.abort();
       loadedImage = cropped;
       userUploadedImage = cropped;
       showControlsScreen(() => launchGame());
@@ -788,6 +801,7 @@ function showControlsScreen(onDone: () => void) {
   uploadScreen.addEventListener("click", dismiss);
 }
 
+let selectedSector: 1 | 2 = 1;
 function launchGame() {
   if (!loadedImage) return;
   uploadScreen.style.display = "none";
@@ -796,7 +810,8 @@ function launchGame() {
   startGame(
     loadedImage,
     () => launchGame(), // restart
-    () => showUploadScreen() // back to upload (ESC skips align screen)
+    () => showUploadScreen(), // back to upload (ESC skips align screen)
+    selectedSector
   );
 }
 

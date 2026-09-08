@@ -1,3 +1,4 @@
+import { rememberPosition, renderX, renderY } from "./motion";
 import {
   PowerUp,
   Player,
@@ -11,9 +12,9 @@ import {
 const POWERUP_SIZE = 40;
 const POWERUP_SPEED = 1.5;
 
-// Preload Claude logo
-const claudeImg = new Image();
-claudeImg.src = "/laser-head/claude.svg";
+// Preload the plasma-core pickup
+const plasmaImg = new Image();
+plasmaImg.src = "/laser-head/plasma-core.svg";
 
 let powerUp: PowerUp | null = null;
 let spawnCooldown = 0;
@@ -48,6 +49,7 @@ export function trySpawnPowerUp(difficulty: number) {
 
 export function updatePowerUp(frame: number) {
   if (!powerUp) return;
+  rememberPosition(powerUp);
   powerUp.x -= powerUp.speed;
   powerUp.y += Math.sin(frame * 0.02 + powerUp.sineOffset) * 0.8;
 
@@ -62,14 +64,14 @@ export function drawPowerUp(ctx: CanvasRenderingContext2D, frame: number) {
 
   ctx.save();
   const pulse = 0.6 + Math.sin(frame * 0.08) * 0.4;
-  ctx.shadowColor = `rgba(217, 119, 62, ${pulse})`;
+  ctx.shadowColor = `rgba(80, 220, 255, ${pulse})`;
   ctx.shadowBlur = 20 + pulse * 10;
 
-  if (claudeImg.complete && claudeImg.naturalWidth > 0) {
-    const aspect = claudeImg.naturalWidth / claudeImg.naturalHeight;
+  if (plasmaImg.complete && plasmaImg.naturalWidth > 0) {
+    const aspect = plasmaImg.naturalWidth / plasmaImg.naturalHeight;
     const drawW = aspect >= 1 ? p.size : p.size * aspect;
     const drawH = aspect >= 1 ? p.size / aspect : p.size;
-    ctx.drawImage(claudeImg, p.x - drawW / 2, p.y - drawH / 2, drawW, drawH);
+    ctx.drawImage(plasmaImg, renderX(p) - drawW / 2, renderY(p) - drawH / 2, drawW, drawH);
   }
 
   ctx.restore();

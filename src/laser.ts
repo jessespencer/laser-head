@@ -1,4 +1,5 @@
-import { Laser, LASER_SPEED, CANVAS_W } from "./types";
+import { rememberPosition, renderX, renderY } from "./motion";
+import { Laser, LASER_SPEED, CANVAS_W, CANVAS_H } from "./types";
 
 let lasers: Laser[] = [];
 let ultraLasers: Laser[] = [];
@@ -66,14 +67,16 @@ export function clearLasers() {
   lasers = [];
 }
 
-export function spawnLaser(x: number, y: number) {
-  lasers.push({ x, y });
+export function spawnLaser(x: number, y: number, vy = 0) {
+  lasers.push({ x, y, vy });
 }
 
 export function updateLasers() {
   for (let i = lasers.length - 1; i >= 0; i--) {
+    rememberPosition(lasers[i]);
     lasers[i].x += LASER_SPEED;
-    if (lasers[i].x > CANVAS_W + 30) {
+    lasers[i].y += lasers[i].vy ?? 0;
+    if (lasers[i].x > CANVAS_W + 30 || lasers[i].y < -30 || lasers[i].y > CANVAS_H + 30) {
       lasers.splice(i, 1);
     }
   }
@@ -83,7 +86,8 @@ export function drawLasers(ctx: CanvasRenderingContext2D) {
   if (lasers.length === 0) return;
   const sprite = getLaserSprite();
   for (const l of lasers) {
-    ctx.drawImage(sprite, l.x - LASER_ANCHOR_X, l.y - LASER_ANCHOR_Y);
+    ctx.save();ctx.translate(renderX(l),renderY(l));ctx.rotate(Math.atan2(l.vy??0,LASER_SPEED));
+    ctx.drawImage(sprite,-LASER_ANCHOR_X,-LASER_ANCHOR_Y);ctx.restore();
   }
 }
 
@@ -97,27 +101,47 @@ export function clearUltraLasers() {
   ultraLasers = [];
 }
 
-export function spawnUltraLaser(x: number, y: number) {
-  ultraLasers.push({ x, y });
+export function spawnUltraLaser(x: number, y: number, vy = 0) {
+  ultraLasers.push({ x, y, vy });
 }
 
 export function updateUltraLasers() {
   for (let i = ultraLasers.length - 1; i >= 0; i--) {
+    rememberPosition(ultraLasers[i]);
     ultraLasers[i].x += LASER_SPEED;
-    if (ultraLasers[i].x > CANVAS_W + 30) {
+    ultraLasers[i].y += ultraLasers[i].vy ?? 0;
+    if (ultraLasers[i].x > CANVAS_W + 30 || ultraLasers[i].y < -30 || ultraLasers[i].y > CANVAS_H + 30) {
       ultraLasers.splice(i, 1);
     }
   }
 }
 
+let plasmaSprite: HTMLCanvasElement | null = null;
+function getPlasmaSprite() {
+  if (plasmaSprite) return plasmaSprite;
+  const c = document.createElement("canvas");
+  c.width = 72; c.height = 48;
+  const g = c.getContext("2d")!;
+  const glow = g.createLinearGradient(0, 16, 0, 32);
+  glow.addColorStop(0, "rgba(50,160,255,0)");
+  glow.addColorStop(0.5, "rgba(50,220,255,0.3)");
+  glow.addColorStop(1, "rgba(50,160,255,0)");
+  g.fillStyle = glow; g.fillRect(16, 16, 40, 16);
+  g.shadowColor = "#4ceaff"; g.shadowBlur = 7;
+  g.fillStyle = "#49ccff"; g.fillRect(20, 21, 34, 6);
+  g.fillStyle = "#eaffff"; g.fillRect(24, 22.5, 32, 3);
+  plasmaSprite = c;
+  return c;
+}
+
 export function drawUltraLasers(ctx: CanvasRenderingContext2D) {
   if (ultraLasers.length === 0) return;
-  const sprite = getLaserSprite();
-  // Additive blend so a dense ultra stream reads as one blazing beam.
+  const sprite = getPlasmaSprite();
   const prev = ctx.globalCompositeOperation;
   ctx.globalCompositeOperation = "lighter";
   for (const l of ultraLasers) {
-    ctx.drawImage(sprite, l.x - LASER_ANCHOR_X, l.y - LASER_ANCHOR_Y);
+    ctx.save();ctx.translate(renderX(l),renderY(l));ctx.rotate(Math.atan2(l.vy??0,LASER_SPEED));
+    ctx.drawImage(sprite,-24,-24);ctx.restore();
   }
   ctx.globalCompositeOperation = prev;
 }

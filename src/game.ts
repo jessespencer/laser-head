@@ -1,8 +1,20 @@
+import {createRefinery, stepRefinery, hitFacility, collectRefineryPickup, refineryChapter, REFINERY_BOSS_TICK} from './refinery';
+import {drawRefineryBackground, drawFacilities} from './refinery-view';
+import { unlockAudio, toggleSound, soundMuted, pauseAudio, playSound } from "./audio";
+import { createBoss, stepBoss, createRefineryBoss, stepRefineryBoss, damageBossPart, BOSS_ARRIVAL_TICK, type Boss } from "./boss";
+import { drawBoss } from "./boss-view";
+import { spawnEnemyShot } from "./enemy-shots";
+import { resolveBlast } from "./blast";
+import { clearEnemyShots, updateEnemyShots, enemyShotHits, drawEnemyShots } from "./enemy-shots";
+import { combatPace, encounterKind, mineCount, shouldOfferMine, WAVE_NAMES } from "./formations";
+import { setRenderBlend, renderX, renderY, shotHits, rememberPosition } from "./motion";
+import { createClock } from "./timing";
 import {
   GameState,
   CANVAS_W,
   CANVAS_H,
   COMBO_WINDOW,
+  FIRE_RATE,
   MAX_MULTIPLIER,
   DIFFICULTY_INTERVAL,
   ENEMY_TYPES,
@@ -30,7 +42,10 @@ import {
 import { createPlayer, updatePlayer, drawPlayer, getEyePositions } from "./player";
 import { spawnLaser, updateLasers, drawLasers, getLasers, clearLasers, spawnUltraLaser, updateUltraLasers, drawUltraLasers, getUltraLasers, clearUltraLasers } from "./laser";
 import {
-  spawnEnemy,
+  spawnWave,
+  spawnAttackTank,
+  spawnRandomEnemy,
+  spawnMine,
   updateEnemies,
   drawEnemies,
   getEnemies,
@@ -66,9 +81,26 @@ let ctx: CanvasRenderingContext2D;
 let player: Player;
 let state: GameState;
 let keys: Set<string> = new Set();
+const clock = createClock();
 let fireRequested = false;
-let spawnTimer = 0;
-let spawnInterval = 1200;
+let damageImmunity = 0;
+let shotCooldown = 0;
+let boss: Boss | null = null;
+let stageCleared = false;
+let sector: 1 | 2 = 1;
+let sectorFrame = 0;
+let transition = 0;
+let spread = false;
+let refinery = createRefinery();
+let waveNumber = 0;
+let formationNumber = 0;
+let randomRemaining = 0;
+let randomTimer = 0;
+let waveLabel = "";
+let waveRest = 30;
+let waveBanner = 0;
+let chainNotices: {x:number;y:number;life:number;text:string}[] = [];
+let lastMine = -1200;
 let animId = 0;
 let dpr = 1;
 let onRestart: () => void;
@@ -91,11 +123,17 @@ let nameSlot = 0;
 export function startGame(
   image: HTMLImageElement,
   restartCb: () => void,
-  uploadCb: () => void
+  uploadCb: () => void,
+  initialSector: 1 | 2 = 1
 ) {
   canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
   ctx = canvas.getContext("2d", { alpha: false })!;
 
+  unlockAudio();
+  pauseAudio(false);
+  boss = null;
+  stageCleared = false;
+  sector = initialSector; sectorFrame = 0; transition = 0; spread = false; refinery = createRefinery();
   onRestart = restartCb;
   onUpload = uploadCb;
 
@@ -122,8 +160,18 @@ export function startGame(
   };
 
   fireRequested = false;
-  spawnTimer = 0;
-  spawnInterval = 1200;
+  damageImmunity = 0;
+  shotCooldown = 0;
+  clock.reset();
+  waveNumber = 0;
+  formationNumber = 0;
+  randomRemaining = 0;
+  randomTimer = 0;
+  waveLabel = "";
+  waveRest = 30;
+  waveBanner = 0;
+  chainNotices = [];
+  lastMine = -1200;
   topBoard = [];
   personalBest = null;
   isNewBest = false;
@@ -136,6 +184,7 @@ export function startGame(
   clearLasers();
   clearUltraLasers();
   clearEnemies();
+  clearEnemyShots();
   clearParticles();
   clearBlastRings();
   clearPowerUp();
@@ -145,10 +194,12 @@ export function startGame(
   keys.clear();
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", pauseGame);
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   // Start loop
   if (animId) cancelAnimationFrame(animId);
-  loop();
+  animId = requestAnimationFrame(loop);
 }
 
 function onKeyDown(e: KeyboardEvent) {
@@ -164,7 +215,13 @@ function onKeyDown(e: KeyboardEvent) {
   }
 
   if (e.repeat) return;
-  keys.add(e.key);
+  unlockAudio();
+  if (e.key.toLowerCase() === "m") { toggleSound(); return; }
+  if (state.paused && !state.gameOver) {
+    if (e.key === "Enter") { state.paused = false; clock.reset(); pauseAudio(false); }
+    if (e.key !== "Escape") return;
+  }
+  keys.add(e.key.toLowerCase());
 
   if (e.key === " " && !state.gameOver) {
     fireRequested = true;
@@ -219,14 +276,30 @@ function handleNameEntryKey(key: string) {
 }
 
 function onKeyUp(e: KeyboardEvent) {
-  keys.delete(e.key);
+  keys.delete(e.key.toLowerCase());
+}
+
+function pauseGame() {
+  pauseAudio(true);
+  setRenderBlend(1);
+  keys.clear();
+  fireRequested = false;
+  clock.reset();
+  if (!state.gameOver) state.paused = true;
+}
+
+function onVisibilityChange() {
+  if (document.hidden) pauseGame();
 }
 
 function cleanup() {
+  pauseAudio(true);
   cancelAnimationFrame(animId);
   window.removeEventListener("keydown", onKeyDown);
   window.removeEventListener("keyup", onKeyUp);
   window.removeEventListener("resize", resize);
+  window.removeEventListener("blur", pauseGame);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
 }
 
 // Fill the viewport at device resolution (DPR capped so 4K/retina fill rate
@@ -258,8 +331,8 @@ function recordKill(basePoints: number, killCount: number) {
   state.multiplier = Math.min(MAX_MULTIPLIER, Math.floor(state.combo / 2) + 1);
   state.score += basePoints * state.multiplier;
   state.difficulty = Math.floor(state.score / DIFFICULTY_INTERVAL);
-  spawnInterval = Math.max(300, 1200 - state.difficulty * 80);
 
+  playSound("kill", state.multiplier);
   state.kills += killCount;
   if (state.combo > state.maxCombo) state.maxCombo = state.combo;
 }
@@ -312,15 +385,37 @@ async function finalizeRun(name: string) {
   placedRank = topBoard.find((r) => r.ts === summary.ts)?.rank ?? 0;
 }
 
-function loop() {
+function loop(now: number) {
   animId = requestAnimationFrame(loop);
+  if (state.gameOver) { drawGameOver(); return; }
+  if (!state.paused) setRenderBlend(clock.advance(now, () => {
+    if (!state.gameOver) updateGame();
+  }));
+  if (state.gameOver) { drawGameOver(); return; }
+  renderGame();
+  if (state.paused) {
+    ctx.fillStyle = "rgba(5,6,15,0.8)";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 24px monospace";
+    ctx.fillText("PAUSED", CANVAS_W / 2, CANVAS_H / 2);
+    ctx.font = "16px monospace";
+    ctx.fillText("ENTER to resume", CANVAS_W / 2, CANVAS_H / 2 + 34);
+    ctx.restore();
+  }
+}
 
-  if (state.gameOver) {
-    drawGameOver();
+function updateGame() {
+  if (damageImmunity > 0) damageImmunity--;
+  state.frame++;
+  if (transition > 0) {
+    updateStarfield(); updateParticles(); updateBlastRings(); updateShake();
+    if (--transition === 0) beginRefinery();
     return;
   }
-
-  state.frame++;
+  sectorFrame++;
 
   // --- Update ---
   updateStarfield();
@@ -328,38 +423,111 @@ function loop() {
   const firing = keys.has(" ");
   updatePlayer(player, keys, firing);
 
-  // Spawn enemies
-  spawnTimer++;
-  if (spawnTimer >= spawnInterval / 16.67) {
-    // approximate frame-based interval
-    spawnEnemy(state.difficulty);
-    spawnTimer = 0;
+  // Alternate coordinated formations with independently arriving raiders.
+  if (waveBanner > 0) waveBanner--;
+  chainNotices = chainNotices.filter(n => --n.life > 0);
+  if (!boss && sectorFrame >= (sector === 1 ? BOSS_ARRIVAL_TICK : REFINERY_BOSS_TICK)) {
+    boss = sector === 1 ? createBoss(CANVAS_W, CANVAS_H) : createRefineryBoss(CANVAS_W, CANVAS_H);
+    refinery.units = [];
+    clearEnemies(); clearEnemyShots();
+    randomRemaining = 0; waveBanner = 0;
+    playSound("warning");
   }
-  updateEnemies(state.frame);
+  if (boss) {
+    rememberPosition(boss);
+    for (const part of boss.parts) rememberPosition(part);
+    for (const shot of (sector === 1 ? stepBoss : stepRefineryBoss)(boss, player, CANVAS_W, CANVAS_H)) spawnEnemyShot(shot.x, shot.y, shot.dx, shot.dy);
+    if (boss.dead && boss.deathTicks % 15 === 0 && boss.deathTicks < 90) {
+      spawnBombExplosion(boss.x + (Math.random()-0.5)*100, boss.y + (Math.random()-0.5)*170);
+      playSound("blast"); triggerShake(12);
+    }
+    if (boss.dead && boss.deathTicks >= 90) {
+      if (sector === 1) { transition = 180; clearLasers(); clearUltraLasers(); }
+      else void endGame();
+      return;
+    }
+  }
+  const pace = combatPace(state.frame, state.difficulty);
+  if (sector === 1 && !boss && randomRemaining > 0 && --randomTimer <= 0) {
+    spawnRandomEnemy(state.difficulty, pace);
+    randomRemaining--;
+    randomTimer = Math.max(18, Math.round((30 + Math.random() * 24) / pace));
+  }
+  if (sector === 1 && !boss && randomRemaining === 0 && !getEnemies().some(e => e.type !== "bomb")) {
+    if (--waveRest <= 0) {
+      waveNumber++;
+      if (encounterKind(waveNumber) === "formation") {
+        formationNumber++;
+        spawnWave(formationNumber, pace);
+        if (formationNumber >= 2) spawnAttackTank(pace);
+        waveLabel = WAVE_NAMES[(formationNumber - 1) % 3];
+      } else {
+        randomRemaining = Math.min(12, 6 + Math.floor(waveNumber / 3));
+        randomTimer = 1;
+        waveLabel = "ROAMING RAIDERS";
+      }
+      waveRest = 45;
+      waveBanner = 100;
+      if (shouldOfferMine(waveNumber, state.frame, lastMine, Math.random()) &&
+          !getEnemies().some(e => e.type === "bomb")) {
+        spawnMine(mineCount(Math.random()));
+        lastMine = state.frame;
+      }
+    }
+  }
+  if (sector === 2 && !boss) {
+    for (const u of refinery.units) rememberPosition(u);
+    const result = stepRefinery(refinery, player, CANVAS_W, CANVAS_H);
+    for (const shot of result.shots) spawnEnemyShot(shot.x,shot.y,shot.dx,shot.dy);
+    for (const blast of result.blasts) {
+      spawnBombExplosion(blast.x,blast.y);spawnBlastRing(blast.x,blast.y,165);triggerShake(10);playSound('blast');
+      const victims=getEnemies().filter(e=>e.type!=='bomb'&&Math.hypot(e.x-blast.x,e.y-blast.y)<165);
+      for(const e of victims){spawnExplosion(e.x,e.y,'#ffd08a');recordKill(ENEMY_TYPES[e.type].points,1);removeEnemy(getEnemies().indexOf(e));}
+    }
+    for (const u of result.destroyed) { recordKill(u.kind==='fuel'?200:u.kind==='carrier'?700:500,1);spawnExplosion(u.x,u.y,'#ffca79'); }
+    if (sectorFrame < 65*60 && sectorFrame%480===180) {
+      spawnWave(1+Math.floor(sectorFrame/480),1.1);
+    }
+    if (sectorFrame===35*60 || sectorFrame===55*60) spawnAttackTank(1.1);
+  }
+  if(sector===2) {
+    // Late carrier rewards remain available when the guardian arrives.
+    if(boss && refinery.pickup) {
+      refinery.pickup.x-=1.8;
+      if(--refinery.pickup.life<=0 || refinery.pickup.x < -30)refinery.pickup=null;
+    }
+    if(collectRefineryPickup(refinery,player)) {
+      spread=true;state.lives=Math.min(8,state.lives+1);playSound('pickup');
+      chainNotices.push({x:player.x,y:player.y,life:100,text:'SPREAD ONLINE · SHIELD REPAIRED'});
+    }
+  }
+  updateEnemies(state.frame, player);
+  updateEnemyShots();
 
   // Power-up
   trySpawnPowerUp(state.difficulty);
   updatePowerUp(state.frame);
   if (checkPowerUpCollision(player)) {
     state.ultraTimer = ULTRA_DURATION;
+    playSound("pickup");
   }
   if (state.ultraTimer > 0) {
     state.ultraTimer--;
     player.firing = true;
   }
 
-  // Fire lasers — normal: one shot per press; ultra: hold space for rapid stream
-  if (state.ultraTimer > 0 && firing && state.frame % ULTRA_FIRE_RATE === 0) {
-    fireRequested = false;
+  // Immediate first shot, then a steady stream while held. Ultra doubles cadence.
+  if (shotCooldown > 0) shotCooldown--;
+  if ((firing || fireRequested) && shotCooldown === 0) {
     const [leftEye, rightEye] = getEyePositions(player);
-    spawnUltraLaser(leftEye.x, leftEye.y);
-    spawnUltraLaser(rightEye.x, rightEye.y);
-  } else if (fireRequested) {
-    fireRequested = false;
-    const [leftEye, rightEye] = getEyePositions(player);
-    spawnLaser(leftEye.x, leftEye.y);
-    spawnLaser(rightEye.x, rightEye.y);
+    const spawn = state.ultraTimer > 0 ? spawnUltraLaser : spawnLaser;
+    playSound(state.ultraTimer > 0 ? "plasma" : "laser");
+    spawn(leftEye.x, leftEye.y);
+    spawn(rightEye.x, rightEye.y);
+    if (spread) { spawn(leftEye.x,leftEye.y,-5);spawn(rightEye.x,rightEye.y,5); }
+    shotCooldown = state.ultraTimer > 0 ? ULTRA_FIRE_RATE : FIRE_RATE;
   }
+  fireRequested = false;
   updateLasers();
   updateUltraLasers();
 
@@ -378,14 +546,12 @@ function loop() {
 
   for (let li = lasers.length - 1; li >= 0; li--) {
     const l = lasers[li];
+    if (hitFacilityShot(l) || hitBoss(l)) { lasers.splice(li, 1); continue; }
     for (let ei = enemies.length - 1; ei >= 0; ei--) {
       const e = enemies[ei];
       const halfSize = e.size * 0.5;
       if (
-        l.x > e.x - halfSize &&
-        l.x < e.x + halfSize &&
-        l.y > e.y - halfSize * 1.2 &&
-        l.y < e.y + halfSize * 1.2
+        shotHits(l, e, halfSize, halfSize * 1.2)
       ) {
         // Hit!
         lasers.splice(li, 1);
@@ -398,6 +564,7 @@ function loop() {
           break;
         }
 
+        playSound("hit");
         e.hp--;
         e.flashFrames = 4;
 
@@ -419,14 +586,12 @@ function loop() {
   const uLasers = getUltraLasers();
   for (let li = uLasers.length - 1; li >= 0; li--) {
     const l = uLasers[li];
+    if (hitFacilityShot(l) || hitBoss(l)) { uLasers.splice(li, 1); continue; }
     for (let ei = enemies.length - 1; ei >= 0; ei--) {
       const e = enemies[ei];
       const halfSize = e.size * 0.5;
       if (
-        l.x > e.x - halfSize &&
-        l.x < e.x + halfSize &&
-        l.y > e.y - halfSize * 1.2 &&
-        l.y < e.y + halfSize * 1.2
+        shotHits(l, e, halfSize, halfSize * 1.2)
       ) {
         uLasers.splice(li, 1);
 
@@ -437,12 +602,14 @@ function loop() {
           break;
         }
 
+        spawnExplosion(l.x, l.y, "#67efff");
+        playSound("hit");
         e.hp--;
         e.flashFrames = 4;
 
         if (e.hp <= 0) {
           const def = ENEMY_TYPES[e.type];
-          spawnExplosion(e.x, e.y, def.color);
+          spawnExplosion(e.x, e.y, "#67efff");
           recordKill(def.points, 1);
           removeEnemy(ei);
         }
@@ -451,38 +618,21 @@ function loop() {
     }
   }
 
-  // Bomb detonation resolution
-  for (let ei = enemies.length - 1; ei >= 0; ei--) {
-    const e = enemies[ei];
-    if (e.type === "bomb" && e.detonateTimer !== undefined && e.detonateTimer <= 0) {
-      // Blast radius kills nearby enemies
-      let blastKills = 0;
-      for (let oi = enemies.length - 1; oi >= 0; oi--) {
-        if (oi === ei) continue;
-        const other = enemies[oi];
-        const dx = other.x - e.x;
-        const dy = other.y - e.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < BOMB_BLAST_RADIUS) {
-          const oDef = ENEMY_TYPES[other.type];
-          spawnExplosion(other.x, other.y, oDef.color);
-          blastKills++;
-          removeEnemy(oi);
-          if (oi < ei) ei--;
-        }
-      }
-
-      // Score — bomb itself plus every enemy caught in the blast
-      const bombDef = ENEMY_TYPES["bomb"];
-      recordKill(bombDef.points + blastKills * BOMB_KILL_BONUS, 1 + blastKills);
-
-      // Effects — big blast
-      spawnBombExplosion(e.x, e.y);
-      spawnBlastRing(e.x, e.y, BOMB_BLAST_RADIUS);
-      triggerShake(35);
-
-      removeEnemy(ei);
+  // Snapshot ready mines so secondary fuses cannot explode in the same update.
+  const readyMines = enemies.filter(e => e.type === "bomb" && e.detonateTimer !== undefined && e.detonateTimer <= 0);
+  for (const e of readyMines) {
+    if (!enemies.includes(e)) continue;
+    const blast = resolveBlast(enemies, e, BOMB_BLAST_RADIUS);
+    for (const victim of blast.victims) spawnExplosion(victim.x, victim.y, ENEMY_TYPES[victim.type].color);
+    recordKill(ENEMY_TYPES.bomb.points + blast.victims.length * BOMB_KILL_BONUS + blast.bonus, 1 + blast.victims.length);
+    if (blast.bonus > 0) {
+      chainNotices.push({x:e.x,y:e.y,life:70,text:`CHAIN +${blast.bonus * state.multiplier}`});
+      if (chainNotices.length > 6) chainNotices.shift();
     }
+    playSound("blast");
+    spawnBombExplosion(e.x, e.y);
+    spawnBlastRing(e.x, e.y, BOMB_BLAST_RADIUS);
+    triggerShake(25);
   }
 
   // Collisions: enemies vs player
@@ -491,7 +641,7 @@ function loop() {
   for (let ei = enemies.length - 1; ei >= 0; ei--) {
     const e = enemies[ei];
     // Bombs don't deal contact damage
-    if (e.type === "bomb") continue;
+    if (e.type === "bomb" || damageImmunity > 0) continue;
     const halfSize = e.size * 0.4;
     if (
       player.x - pw < e.x + halfSize &&
@@ -499,25 +649,68 @@ function loop() {
       player.y - ph < e.y + halfSize &&
       player.y + ph > e.y - halfSize
     ) {
-      // Player hit
-      state.lives--;
-      state.combo = 0;
-      state.multiplier = 1;
-      state.comboTimer = 0;
-      triggerShake(15);
-      spawnExplosion(e.x, e.y, "#f44");
       removeEnemy(ei);
-
-      if (state.lives <= 0) {
-        void endGame();
-      }
+      damagePlayer();
+      break;
     }
   }
+
+  if (!state.gameOver && damageImmunity === 0 && enemyShotHits(player)) damagePlayer();
 
   updateParticles();
   updateBlastRings();
   updateShake();
 
+}
+
+function beginRefinery() {
+  sector=2;sectorFrame=0;boss=null;stageCleared=false;refinery=createRefinery();
+  clearEnemies();clearEnemyShots();clearLasers();clearUltraLasers();clearPowerUp();
+  clearParticles();clearBlastRings();
+  state.lives=Math.min(8,state.lives+2);state.combo=0;state.multiplier=1;state.comboTimer=0;
+  damageImmunity=120;shotCooldown=0;waveBanner=0;state.ultraTimer=0;
+  player.x=CANVAS_W*0.15;player.y=CANVAS_H/2;rememberPosition(player);
+}
+function hitFacilityShot(shot:{x:number;y:number}) {
+  if(sector!==2 || boss) return false;
+  for(const u of refinery.units) {
+    if(u.dead || u.fuse>0)continue;
+    if(!shotHits(shot,u,u.kind==='fuel'?18:u.kind==='carrier'?44:28,u.kind==='carrier'?28:u.kind==='fuel'?24:28))continue;
+    hitFacility(u);spawnExplosion(shot.x,shot.y,'#b4ffdb');playSound('hit');return true;
+  }
+  return false;
+}
+function hitBoss(shot: {x:number;y:number}) {
+  if (!boss || boss.dead || boss.tick < 120) return false;
+  for (const part of boss.parts) {
+    if (part.hp <= 0 || !shotHits(shot, part, part.half, part.half)) continue;
+    const result = damageBossPart(boss, part);
+    playSound("hit");
+    if (result === "destroyed") {
+      spawnBombExplosion(part.x, part.y); triggerShake(18); playSound("blast");
+      recordKill(part.kind === "core" ? 5000 : 1000, 1);
+      if (boss.dead) {
+        stageCleared = true; clearEnemyShots(); clearEnemies();
+        playSound("victory");
+      }
+    } else if (result !== "shield") spawnExplosion(shot.x, shot.y, "#9effff");
+    return true;
+  }
+  return false;
+}
+
+function damagePlayer() {
+  if (stageCleared) return;
+  playSound("damage");
+  state.lives--;
+  damageImmunity = 45;
+  state.combo = 0; state.multiplier = 1; state.comboTimer = 0;
+  triggerShake(15);
+  spawnExplosion(player.x, player.y, "#ff7038");
+  if (state.lives <= 0) void endGame();
+}
+
+function renderGame() {
   // --- Render ---
   // Base transform maps CSS-pixel world coords onto the DPR-scaled backing store.
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -530,18 +723,65 @@ function loop() {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(-10, -10, CANVAS_W + 20, CANVAS_H + 20);
 
-  drawStarfield(ctx);
-  drawPlayer(player, ctx);
+  if (sector===2) drawRefineryBackground(ctx,sectorFrame,CANVAS_W,CANVAS_H);
+  else drawStarfield(ctx);
+  if (sector===2) drawFacilities(ctx,refinery);
+  drawPlayer(player, ctx, state.ultraTimer > 0);
+  if (damageImmunity > 0) {
+    ctx.save();
+    ctx.strokeStyle = "#8ef";
+    ctx.globalAlpha = 0.45 + 0.35 * Math.sin(damageImmunity);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(renderX(player), renderY(player), player.width * 0.55, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   drawLasers(ctx);
   drawUltraLasers(ctx);
   drawEnemies(ctx, state.frame);
   drawPowerUp(ctx, state.frame);
   drawParticles(ctx);
   drawBlastRings(ctx);
+  drawEnemyShots(ctx);
+  if (boss) drawBoss(ctx, boss);
 
   ctx.restore();
 
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.font = "bold 18px monospace";
+  ctx.fillStyle = "#ffe49b";
+  for (const notice of chainNotices) {
+    ctx.globalAlpha = Math.min(1, notice.life / 20);
+    ctx.fillText(notice.text, Math.max(90, Math.min(CANVAS_W - 90, notice.x)), Math.max(110, notice.y - (70 - notice.life) * 0.6));
+  }
+  ctx.restore();
   drawHUD(ctx, state);
+  ctx.save(); ctx.textAlign = "right"; ctx.font = "12px monospace"; ctx.fillStyle = "#91a0b6";
+  ctx.fillText(soundMuted() ? "M · SOUND OFF" : "M · SOUND ON", CANVAS_W - 16, 24);
+  ctx.fillText(`SECTOR 0${sector} · ${Math.floor(sectorFrame / 60)}s`, CANVAS_W - 16, 43);
+  ctx.restore();
+  if (sector===2 && !boss) {
+    ctx.save();ctx.textAlign='center';ctx.font='12px monospace';ctx.fillStyle='#94bdb4';
+    ctx.fillText(refineryChapter(sectorFrame),CANVAS_W/2,86);
+    ctx.textAlign='left';ctx.fillStyle=spread?'#b4ffcd':'#889b9a';ctx.fillText(spread?'SPREAD ONLINE':'DESTROY SUPPLY SHIPS FOR SPREAD + REPAIR',16,CANVAS_H-22);ctx.restore();
+  }
+  if (transition>0 || (sector===2 && sectorFrame<210)) {
+    ctx.save();ctx.fillStyle='rgba(5,12,19,0.72)';ctx.fillRect(0,CANVAS_H/2-72,CANVAS_W,144);
+    ctx.textAlign='center';ctx.fillStyle='#b7f3d7';ctx.font=`bold ${Math.min(32,CANVAS_W/22)}px monospace`;
+    ctx.fillText(transition?'SECTOR 01 CLEARED':'SECTOR 02 · HELIOFORGE',CANVAS_W/2,CANVAS_H/2-12);
+    ctx.font='14px monospace';ctx.fillText(transition?'NEXT: ALIEN REFINERY · +2 SHIELDS':'BREAK THE FUEL NETWORK. SILENCE THE REACTOR.',CANVAS_W/2,CANVAS_H/2+25);ctx.restore();
+  }
+  if (waveBanner > 0) {
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.font = "bold 16px monospace";
+    ctx.fillStyle = "#a7dfff";
+    ctx.globalAlpha = Math.min(1, waveBanner / 20);
+    ctx.fillText(`WAVE ${waveNumber} · ${waveLabel}`, CANVAS_W / 2, 86);
+    ctx.restore();
+  }
   drawCRT(ctx);
 }
 
@@ -687,7 +927,10 @@ function drawNameEntry() {
   const totalH = titleH + gapA + promptH + gapB + slotsH + gapC + hintH;
   const topY = (CANVAS_H - totalH) / 2;
 
-  drawBanner(ctx, GAME_OVER_ASCII, topY);
+  if (stageCleared) {
+    ctx.save();ctx.textAlign="center";ctx.fillStyle="#a5efff";ctx.font="bold 36px monospace";
+    ctx.fillText("REFINERY CLEARED",CANVAS_W/2,topY+45);ctx.restore();
+  } else drawBanner(ctx, GAME_OVER_ASCII, topY);
 
   ctx.save();
   ctx.textAlign = "center";
@@ -704,7 +947,7 @@ function drawNameEntry() {
   const slotGap = 24;
   const totalW = NAME_LEN * slotW + (NAME_LEN - 1) * slotGap;
   let sx = CANVAS_W / 2 - totalW / 2;
-  const blink = Math.floor(state.frame / 20) % 2 === 0;
+  const blink = Math.floor(performance.now() / 333) % 2 === 0;
   ctx.textBaseline = "middle";
   for (let i = 0; i < NAME_LEN; i++) {
     const active = i === nameSlot;
@@ -763,7 +1006,10 @@ function drawGameOver() {
     (boardH ? gapBoard + boardH : 0) + gap2 + instrH;
   const topY = (CANVAS_H - totalH) / 2;
 
-  drawBanner(ctx, GAME_OVER_ASCII, topY);
+  if (stageCleared) {
+    ctx.save();ctx.textAlign="center";ctx.fillStyle="#a5efff";ctx.font="bold 36px monospace";
+    ctx.fillText("REFINERY CLEARED",CANVAS_W/2,topY+45);ctx.restore();
+  } else drawBanner(ctx, GAME_OVER_ASCII, topY);
 
   ctx.save();
   ctx.textAlign = "center";
