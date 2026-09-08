@@ -28,8 +28,8 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.fillRect(barX, barY, barW, barH);
 
-    ctx.fillStyle = `rgba(255, ${Math.floor(120 + fill * 80)}, ${Math.floor(20 + fill * 40)}, 0.9)`;
-    ctx.shadowColor = "rgba(255,80,0,0.8)";
+    ctx.fillStyle = "#67efff";
+    ctx.shadowColor = "rgba(60,220,255,0.8)";
     ctx.shadowBlur = 8;
     ctx.fillRect(barX, barY, barW * fill, barH);
     ctx.shadowBlur = 0;
@@ -37,7 +37,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.font = "bold 10px 'Roboto Mono', monospace";
     ctx.fillStyle = "#fff";
     ctx.textAlign = "left";
-    ctx.fillText("ULTRA", barX + barW + 6, barY + 8);
+    ctx.fillText("PLASMA", barX + barW + 6, barY + 8);
   }
 
   // Combo — top center

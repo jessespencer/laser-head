@@ -1,7 +1,26 @@
+import { rememberPosition, renderX, renderY } from "./motion";
 import { Player, CANVAS_W, CANVAS_H, PLAYER_SPEED, PLAYER_SIZE } from "./types";
 
-let glowCanvas: OffscreenCanvas | null = null;
-let glowCtx: OffscreenCanvasRenderingContext2D | null = null;
+let tintSprite: HTMLCanvasElement | null = null;
+let tintImage: HTMLImageElement | null = null;
+
+function getTint(image: HTMLImageElement, width: number, height: number) {
+  if (tintSprite && tintImage === image && tintSprite.width === width && tintSprite.height === height) return tintSprite;
+  const c = document.createElement("canvas");
+  c.width = width;
+  c.height = height;
+  const g = c.getContext("2d")!;
+  g.drawImage(image, 0, 0, width, height);
+  g.globalCompositeOperation = "source-in";
+  const gradient = g.createRadialGradient(width / 2, height * 0.35, 0, width / 2, height * 0.35, width * 0.6);
+  gradient.addColorStop(0, "rgba(255,0,0,0.5)");
+  gradient.addColorStop(1, "rgba(255,0,0,0.1)");
+  g.fillStyle = gradient;
+  g.fillRect(0, 0, width, height);
+  tintSprite = c;
+  tintImage = image;
+  return c;
+}
 
 // Pre-baked red halo disc (drawn additively, scaled by glow intensity).
 let haloSprite: HTMLCanvasElement | null = null;
@@ -45,11 +64,13 @@ export function updatePlayer(
   keys: Set<string>,
   firing: boolean
 ) {
+  rememberPosition(player);
   // Movement
-  if (keys.has("ArrowUp") || keys.has("w")) player.y -= PLAYER_SPEED;
-  if (keys.has("ArrowDown") || keys.has("s")) player.y += PLAYER_SPEED;
-  if (keys.has("ArrowLeft") || keys.has("a")) player.x -= PLAYER_SPEED;
-  if (keys.has("ArrowRight") || keys.has("d")) player.x += PLAYER_SPEED;
+  const dx = Number(keys.has("arrowright") || keys.has("d")) - Number(keys.has("arrowleft") || keys.has("a"));
+  const dy = Number(keys.has("arrowdown") || keys.has("s")) - Number(keys.has("arrowup") || keys.has("w"));
+  const scale = dx && dy ? Math.SQRT1_2 : 1;
+  player.x += dx * PLAYER_SPEED * scale;
+  player.y += dy * PLAYER_SPEED * scale;
 
   // Clamp to bounds
   const hw = player.width / 2;
@@ -66,8 +87,9 @@ export function updatePlayer(
   }
 }
 
-export function drawPlayer(player: Player, ctx: CanvasRenderingContext2D) {
-  const { x, y, width, height, image, glowIntensity } = player;
+export function drawPlayer(player: Player, ctx: CanvasRenderingContext2D, plasma = false) {
+  const { width, height, image, glowIntensity } = player;
+  const x = renderX(player), y = renderY(player);
   const left = x - width / 2;
   const top = y - height / 2;
 
@@ -85,35 +107,24 @@ export function drawPlayer(player: Player, ctx: CanvasRenderingContext2D) {
   // Draw the head
   ctx.drawImage(image, left, top, width, height);
 
-  // Red tint overlay on the face when glowing
-  if (glowIntensity > 0) {
-    // Use offscreen canvas for source-atop compositing
-    if (!glowCanvas) {
-      glowCanvas = new OffscreenCanvas(width, height);
-      glowCtx = glowCanvas.getContext("2d");
-    }
-    if (glowCtx) {
-      glowCanvas.width = width;
-      glowCanvas.height = height;
-      glowCtx.clearRect(0, 0, width, height);
-      glowCtx.drawImage(image, 0, 0, width, height);
-      glowCtx.globalCompositeOperation = "source-atop";
-      const grad = glowCtx.createRadialGradient(
-        width / 2,
-        height * 0.35,
-        0,
-        width / 2,
-        height * 0.35,
-        width * 0.6
-      );
-      grad.addColorStop(0, `rgba(255,0,0,${0.5 * glowIntensity})`);
-      grad.addColorStop(1, `rgba(255,0,0,${0.1 * glowIntensity})`);
-      glowCtx.fillStyle = grad;
-      glowCtx.fillRect(0, 0, width, height);
-      glowCtx.globalCompositeOperation = "source-over";
+  if (plasma) {
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = "#baffff";
+    ctx.strokeStyle = "#43dfff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, width * 0.58, -0.55, 0.55);
+    ctx.stroke();
+    ctx.restore();
+  }
 
-      ctx.drawImage(glowCanvas, left, top);
-    }
+  // The avatar mask and gradient are baked once; only intensity changes.
+  if (glowIntensity > 0) {
+    ctx.save();
+    ctx.globalAlpha = glowIntensity;
+    ctx.drawImage(getTint(image, width, height), left, top);
+    ctx.restore();
   }
 }
 

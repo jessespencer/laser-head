@@ -1,3 +1,5 @@
+import type { TankAttack } from "./tank";
+import type { Flight } from "./formations";
 // Canvas dimensions — mutable so the play field fills the viewport.
 // Read as live bindings inside functions; never destructured at module load.
 export let CANVAS_W = 800;
@@ -9,11 +11,11 @@ export function setCanvasSize(w: number, h: number) {
 }
 
 // Player
-export const PLAYER_SPEED = 5;
+export const PLAYER_SPEED = 10;
 export const PLAYER_SIZE = 112;
 
 // Lasers
-export const LASER_SPEED = 12;
+export const LASER_SPEED = 24;
 export const FIRE_RATE = 4; // frames between shots
 
 // Combo
@@ -28,7 +30,6 @@ export const ULTRA_DURATION = 600; // frames (~10 seconds)
 export const ULTRA_FIRE_RATE = 2; // frames between shots in ultra mode
 export const BOMB_DETONATE_FRAMES = 18;
 export const BOMB_BLAST_RADIUS = 280;        // massive blast
-export const BOMB_SPAWN_CHANCE = 0.04;       // ~1 in 25, much rarer
 export const BOMB_SINE_AMPLITUDE = 4;        // gentle hover bob
 export const BOMB_KILL_BONUS = 150;
 export const BOMB_EYE_BLINK_CYCLE = 240;
@@ -73,6 +74,7 @@ export interface Player {
 }
 
 export interface Laser {
+  vy?: number;
   x: number;
   y: number;
 }
@@ -99,7 +101,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#0a0",
     points: 100,
     speed: 2.5,
-    image: "/laser-head/figma.svg",
+    image: "/laser-head/alien-scout.svg",
   },
   drone: {
     type: "drone",
@@ -109,7 +111,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#aa0",
     points: 250,
     speed: 1.8,
-    image: "/laser-head/sketch.svg",
+    image: "/laser-head/alien-drone.svg",
   },
   tank: {
     type: "tank",
@@ -119,21 +121,23 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
     glowColor: "#a0a",
     points: 500,
     speed: 1.2,
-    image: "/laser-head/photoshop.svg",
+    image: "/laser-head/alien-tank.svg",
   },
   bomb: {
     type: "bomb",
-    size: 54,
+    size: 26,
     hp: 1,
     color: "#f44",
     glowColor: "#a00",
     points: 750,
     speed: 1.5,
-    image: "/laser-head/bomb-robot.svg",
+    image: "/laser-head/alien-mine.svg",
   },
 };
 
 export interface Enemy {
+  attack?: TankAttack;
+  flight?: Flight;
   x: number;
   y: number;
   type: EnemyType;
@@ -144,7 +148,9 @@ export interface Enemy {
   speed: number;
   size: number;
   detonateTimer?: number;
+  chainDepth?: number;
   bombLifetime?: number;   // counts down; bomb disappears at 0
+  bombHoverY?: number;
   bombTargetY?: number;    // Y position to drop to; undefined = already hovering
 }
 

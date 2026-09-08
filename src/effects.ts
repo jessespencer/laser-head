@@ -1,3 +1,4 @@
+import { rememberPosition, renderX, renderY } from "./motion";
 import { Star, Particle, CANVAS_W, CANVAS_H } from "./types";
 
 // --- Starfield ---
@@ -30,10 +31,12 @@ export function initStarfield() {
 
 export function updateStarfield() {
   for (const s of stars) {
-    s.x -= s.speed;
+    rememberPosition(s);
+    s.x -= s.speed * 2.4;
     if (s.x < 0) {
       s.x = CANVAS_W;
       s.y = Math.random() * CANVAS_H;
+      rememberPosition(s);
     }
   }
 }
@@ -42,7 +45,7 @@ export function drawStarfield(ctx: CanvasRenderingContext2D) {
   for (const s of stars) {
     ctx.globalAlpha = s.alpha;
     ctx.fillStyle = "#fff";
-    ctx.fillRect(s.x, s.y, s.size, s.size);
+    ctx.fillRect(renderX(s), renderY(s), s.size, s.size);
   }
   ctx.globalAlpha = 1;
 }
@@ -102,6 +105,7 @@ export function spawnExplosion(x: number, y: number, color: string) {
 export function updateParticles() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
+    rememberPosition(p);
     p.x += p.vx;
     p.y += p.vy;
     p.alpha -= 0.025; // ~40 frames to fade
@@ -123,7 +127,7 @@ export function drawParticles(ctx: CanvasRenderingContext2D) {
     ctx.globalAlpha = Math.max(0, p.alpha);
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.arc(renderX(p), renderY(p), p.size, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalCompositeOperation = prev;

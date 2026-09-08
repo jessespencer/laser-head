@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node --test src/slim/*.test.ts"
+    "test": "node --test src/*.test.ts src/slim/*.test.ts"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
