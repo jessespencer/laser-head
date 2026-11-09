@@ -43,7 +43,7 @@ no software logos or assistant mascots in gameplay.
   Roughly 90 seconds is the design target, not a forced timeout: finish time
   depends on how quickly the player defeats the boss.
 
-These changes are local and uncommitted. Game feel remains subject to playtesting.
+Game feel remains subject to playtesting.
 
 ## Next, in order
 
@@ -59,6 +59,11 @@ raise speed indiscriminately as a substitute for interesting attacks. Keep
 performance changes tied to measurements as entity counts increase.
 
 ## Sector 02 — Helioforge refinery prototype
+
+**Not enabled in shipped builds.** The code below is on main but unreachable: the
+menu button is removed and Sector 01 now ends the run at the Dreadnought. Re-enable
+by restoring the `sector === 1` transition branch in `src/game.ts` and the menu button
+in `src/main.ts`. Still needs hands-on playtesting before it goes live.
 
 - Sector 01 now leads into Sector 02 after a three-second clearance card, carrying
   score and remaining shields forward and repairing up to two shields (cap eight).

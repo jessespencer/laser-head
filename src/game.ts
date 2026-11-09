@@ -442,8 +442,7 @@ function updateGame() {
       playSound("blast"); triggerShake(12);
     }
     if (boss.dead && boss.deathTicks >= 90) {
-      if (sector === 1) { transition = 180; clearLasers(); clearUltraLasers(); }
-      else void endGame();
+      void endGame();
       return;
     }
   }
@@ -929,7 +928,7 @@ function drawNameEntry() {
 
   if (stageCleared) {
     ctx.save();ctx.textAlign="center";ctx.fillStyle="#a5efff";ctx.font="bold 36px monospace";
-    ctx.fillText("REFINERY CLEARED",CANVAS_W/2,topY+45);ctx.restore();
+    ctx.fillText("SECTOR CLEARED",CANVAS_W/2,topY+45);ctx.restore();
   } else drawBanner(ctx, GAME_OVER_ASCII, topY);
 
   ctx.save();
@@ -1008,7 +1007,7 @@ function drawGameOver() {
 
   if (stageCleared) {
     ctx.save();ctx.textAlign="center";ctx.fillStyle="#a5efff";ctx.font="bold 36px monospace";
-    ctx.fillText("REFINERY CLEARED",CANVAS_W/2,topY+45);ctx.restore();
+    ctx.fillText("SECTOR CLEARED",CANVAS_W/2,topY+45);ctx.restore();
   } else drawBanner(ctx, GAME_OVER_ASCII, topY);
 
   ctx.save();

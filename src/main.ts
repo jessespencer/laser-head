@@ -314,15 +314,6 @@ function showUploadScreen() {
     img.src = `${import.meta.env.BASE_URL}default-head.png`;
   };
   defaultZone.addEventListener("click", playDefault);
-  const refineryButton=document.createElement('button');
-  refineryButton.id='refinery-btn';refineryButton.textContent='SECTOR 02 · REFINERY';
-  refineryButton.style.cssText="font: bold 11px 'Roboto Mono',monospace;color:#b7efcf;background:#142d29;border:1px solid #537f6f;border-radius:6px;padding:12px 8px;cursor:pointer;width:100%";
-  defaultZone.appendChild(refineryButton);
-  refineryButton.addEventListener('click',(e)=>{
-    e.stopPropagation();selectedSector=2;
-    if(userUploadedImage){loadedImage=userUploadedImage;showControlsScreen(()=>launchGame());return;}
-    const img=new Image();img.onload=()=>{loadedImage=img;showControlsScreen(()=>launchGame());};img.src=`${import.meta.env.BASE_URL}default-head.png`;
-  });
 
   // Play with previously uploaded head
   const playUploadedBtn = document.getElementById("play-uploaded-btn");
