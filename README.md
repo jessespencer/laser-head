@@ -19,7 +19,7 @@ A browser-based arcade shoot-em-up where you use your own face to shoot lasers a
 - **Eye Alignment Tool** — pan and zoom to position your eyes for accurate laser origin
 - **4 Enemy Types** — Scouts, Drones, Tanks, and Bombs with progressive difficulty scaling
 - **Combo System** — consecutive kills build a multiplier up to 8x
-- **Ultra Mode** — collect power-ups for 10 seconds of rapid-fire lasers
+- **Tiered Power-Ups** — collect cores to climb a two-tier ladder: Overdrive (amber, ~9s of the full-rate laser) and Plasma (cyan, ~7s of faster cyan bolts). A lower tier never downgrades an active higher one
 - **Visual Effects** — screen shake, particle explosions, CRT scanlines, animated starfield
 
 ## Tech Stack

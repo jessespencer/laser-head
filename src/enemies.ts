@@ -14,14 +14,21 @@ import {
   BOMB_EYE_BLINK_DURATION,
   BOMB_LIFETIME,
   BOMB_DROP_SPEED,
+  MAX_ATTACK_TANKS,
 } from "./types";
 
 let enemies: Enemy[] = [];
 
+// How hot the run has got (0..1). The game loop refreshes this each frame; it
+// is read when a shooter spawns, so later tanks are born meaner than early ones.
+let aggression = 0;
+export function setCombatAggression(value: number) {
+  aggression = Math.max(0, Math.min(1, value));
+}
 function addEnemy(enemy: Enemy) {
   if (enemy.type === "tank") {
-    enemy.attack = createTankAttack();
-    enemy.hp = enemy.maxHp = enemy.attack.variant === "spreader" ? 5 : 4;
+    enemy.attack = createTankAttack(Math.random, aggression);
+    enemy.hp = enemy.maxHp = enemy.attack.variant === "spreader" ? 7 : 6;
   }
   enemies.push(enemy);
 }
@@ -139,7 +146,9 @@ export function spawnWave(wave: number, pace = 1) {
 
 export function spawnRandomEnemy(difficulty: number, pace: number) {
   const roll = Math.random();
-  const type: EnemyType = difficulty >= 2 && roll < 0.18 ? "tank" : roll < 0.35 ? "drone" : "scout";
+  const type: EnemyType =
+    difficulty >= 1 && roll < 0.1 + Math.min(0.14, difficulty * 0.03) ? "tank" :
+    roll < 0.45 ? "drone" : "scout";
   const def = ENEMY_TYPES[type];
   addEnemy({ x: CANVAS_W + def.size,
     y: def.size + Math.random() * Math.max(0, CANVAS_H - def.size * 2),
@@ -149,7 +158,9 @@ export function spawnRandomEnemy(difficulty: number, pace: number) {
 }
 
 export function spawnAttackTank(pace: number) {
-  if (enemies.filter(e => e.type === "tank").length >= 2) return;
+  // Late runs sustain one more shooter than the opening does.
+  const cap = aggression >= 0.5 ? MAX_ATTACK_TANKS : MAX_ATTACK_TANKS - 1;
+  if (enemies.filter(e => e.type === "tank").length >= cap) return;
   const def = ENEMY_TYPES.tank;
   addEnemy({x:CANVAS_W+def.size, y:CANVAS_H*(0.25+Math.random()*0.5),
     type:"tank",hp:def.hp,maxHp:def.hp,flashFrames:0,sineOffset:0,
@@ -191,7 +202,7 @@ export function updateEnemies(frame: number, player: {x:number;y:number}) {
       if (e.type === "tank") {
         if (e.flight && e.flight.age < 0) { e.flight.age++; continue; }
         e.flight = undefined;
-        e.attack ??= createTankAttack();
+        e.attack ??= createTankAttack(Math.random, aggression);
         if (stepTank(e, e.attack, player, CANVAS_W)) {
           for (const aim of tankShotDirections(e.attack)) {
             spawnEnemyShot(e.x + aim.x * 34, e.y + aim.y * 34, aim.x, aim.y);

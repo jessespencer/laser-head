@@ -1,5 +1,6 @@
 import type { TankAttack } from "./tank";
 import type { Flight } from "./formations";
+import type { PowerTier } from "./power";
 // Canvas dimensions — mutable so the play field fills the viewport.
 // Read as live bindings inside functions; never destructured at module load.
 export let CANVAS_W = 800;
@@ -16,7 +17,7 @@ export const PLAYER_SIZE = 112;
 
 // Lasers
 export const LASER_SPEED = 24;
-export const FIRE_RATE = 4; // frames between shots
+export const FIRE_RATE = 7; // frames between shots
 
 // Combo
 export const COMBO_WINDOW = 120; // frames
@@ -25,9 +26,19 @@ export const MAX_MULTIPLIER = 8;
 // Difficulty
 export const DIFFICULTY_INTERVAL = 2000; // points
 
-// Ultra laser power-up
-export const ULTRA_DURATION = 600; // frames (~10 seconds)
-export const ULTRA_FIRE_RATE = 2; // frames between shots in ultra mode
+// --- Combat tuning ---
+// Enemy fire. Shots are fast enough to punish standing still, but every
+// volley is still preceded by tank.ts's TANK_TELEGRAPH frames of charge-up.
+export const ENEMY_SHOT_SPEED = 16;
+export const MAX_ENEMY_SHOTS = 120;
+export const MAX_ATTACK_TANKS = 3; // concurrent shooters allowed on screen
+// Player hurt box as a fraction of the sprite. Left generous on purpose: the
+// difficulty comes from the volume of incoming fire, not from shrinking the
+// dodge margin, so a near miss still reads as a miss.
+export const PLAYER_HURT_FRACTION = 0.25;
+
+// Power-up tier definitions (durations, cadences, drop weights) live in
+// power.ts; these are the spawn rules shared by every tier.
 export const BOMB_DETONATE_FRAMES = 18;
 export const BOMB_BLAST_RADIUS = 280;        // massive blast
 export const BOMB_SINE_AMPLITUDE = 4;        // gentle hover bob
@@ -37,9 +48,8 @@ export const BOMB_EYE_BLINK_DURATION = 6;
 export const BOMB_LIFETIME = 300;            // ~5 seconds then disappears
 export const BOMB_DROP_SPEED = 3;            // speed while dropping into position
 
-export const POWERUP_MIN_DIFFICULTY = 3;
-export const POWERUP_COOLDOWN = 1800; // frames (~30 seconds)
-export const POWERUP_CHANCE = 0.0015; // per frame when eligible
+export const POWERUP_COOLDOWN = 1500; // frames (~25 seconds)
+export const POWERUP_CHANCE = 0.002;  // per frame when eligible
 
 // Colors
 export const BG_COLOR = "#05060f";
@@ -60,7 +70,9 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   frame: number;
-  ultraTimer: number;
+  /** Active power-up tier, or null at base cadence. */
+  powerTier: PowerTier | null;
+  powerTimer: number;
 }
 
 export interface Player {
@@ -77,6 +89,8 @@ export interface Laser {
   vy?: number;
   x: number;
   y: number;
+  /** Overdrive beam: brighter sprite, same damage. */
+  hot?: boolean;
 }
 
 export type EnemyType = "scout" | "drone" | "tank" | "bomb";
@@ -106,7 +120,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
   drone: {
     type: "drone",
     size: 36,
-    hp: 2,
+    hp: 3,
     color: "#ff0",
     glowColor: "#aa0",
     points: 250,
@@ -116,7 +130,7 @@ export const ENEMY_TYPES: Record<EnemyType, EnemyTypeDef> = {
   tank: {
     type: "tank",
     size: 48,
-    hp: 4,
+    hp: 6,
     color: "#f0f",
     glowColor: "#a0a",
     points: 500,
@@ -155,6 +169,7 @@ export interface Enemy {
 }
 
 export interface PowerUp {
+  tier: PowerTier;
   x: number;
   y: number;
   size: number;
