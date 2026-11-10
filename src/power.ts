@@ -56,10 +56,22 @@ export function eligibleTiers(difficulty: number): PowerTierDef[] {
 }
 
 /** Weighted pick among unlocked tiers. `roll` is 0..1. Null until the first
- * tier unlocks, so early waves stay unassisted. */
-export function pickPowerTier(difficulty: number, roll: number): PowerTier | null {
-  const tiers = eligibleTiers(difficulty);
-  if (tiers.length === 0) return null;
+ * tier unlocks, so early waves stay unassisted.
+ *
+ * `active` is the power already running, if any. A core that only tops up what
+ * you are already holding is a non-event, so while something is running the
+ * drop is the next rung up — that is what makes this a ladder you climb rather
+ * than a coin flip you re-toss. With nothing running the weights apply, so your
+ * first core of a run is usually the bottom rung. */
+export function pickPowerTier(
+  difficulty: number,
+  roll: number,
+  active: PowerTier | null = null
+): PowerTier | null {
+  const unlocked = eligibleTiers(difficulty);
+  if (unlocked.length === 0) return null;
+  const above = unlocked.filter(d => d.rank > tierRank(active));
+  const tiers = above.length > 0 ? above : unlocked;
   const total = tiers.reduce((sum, d) => sum + d.weight, 0);
   let cursor = Math.max(0, Math.min(0.999999, roll)) * total;
   for (const def of tiers) {
@@ -83,3 +95,14 @@ export function applyPickup(
   return { tier: picked, timer: POWER_TIERS[picked].duration };
 }
 
+/** Chance that a destroyed enemy leaves a core behind. Only the enemies that
+ * shoot back carry one: the reward tracks the risk, and scouts — which are
+ * both harmless and by far the most numerous — would otherwise turn drops
+ * into a lottery on the safest kills in the game. */
+export function dropChance(enemyType: string): number {
+  switch (enemyType) {
+    case 'tank': return 0.35;
+    case 'drone': return 0.04;
+    default: return 0; // scouts and mines never carry cores
+  }
+}

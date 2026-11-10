@@ -9,7 +9,7 @@ no software logos or assistant mascots in gameplay.
 - Fixed 60 Hz simulation with interpolated rendering; faster movement, shots,
   enemies, and spawn pacing after playtesting the initial timing change.
 - Hold-to-fire, swept projectile collisions, normalized diagonal movement.
-- Damage immunity, focus-loss pause, explicit resume, input reset.
+- Damage immunity, manual pause on P, focus-loss pause, explicit resume, input reset.
 - Cached avatar tint, on-demand background removal, upload resource cleanup.
 - Alien scout, drone, tank, mine sprites and tiered power-up cores (overdrive, plasma).
 - Formation milestone: staged swoop/split/dive squadrons, 5–8 aliens per wave,
@@ -20,8 +20,15 @@ no software logos or assistant mascots in gameplay.
   on occasional fourth waves with a twenty-second minimum gap and one opportunity at a time: 50% singles, 35% pairs, 15% triples.
 - Power-ups are a tier ladder defined in `power.ts`: Overdrive (rank 1, amber, restores the
   pre-nerf 4-frame cadence and a brighter "hot" beam sprite) and Plasma (rank 2, cyan, 3-frame
-  cadence and cyan bolts). Tiers unlock by difficulty and drop by weight, so early runs only
-  ever see Overdrive. One slot is active at a time: a higher tier replaces, the same tier
+  cadence and cyan bolts). Cores are hidden in wreckage rather than drifting in on a timer:
+  `dropChance` pays out on tanks (35%) and drones (4%) only, so the reward tracks the risk and
+  scouts — harmless and by far the most numerous — never turn drops into a lottery on the
+  safest kills. One core exists at a time, with a six-second floor between drops — deliberately
+  shorter than the briefest tier, so a core can land while a power is still running.
+  Tiers unlock by difficulty and drop by weight, so your first core of a run is
+  usually the bottom rung; while a power is running the drop is instead the next
+  rung up, which is what makes the ladder something you climb rather than re-roll.
+  One slot is active at a time: a higher tier replaces, the same tier
   refreshes, and a lower tier tops up the running timer rather than downgrading it. The HUD
   bar takes its colour, label and trailing rank pips from the active tier.
 
@@ -46,7 +53,10 @@ no software logos or assistant mascots in gameplay.
 - Audio: synthesized laser/plasma fire, hits, explosions, combo pitch, pickups,
   damage, boss warning and victory. M toggles a persisted mute preference; focus
   loss silences audio. Concurrent voices and repeated sounds are bounded.
-- Sector 01: mixed encounters lead into the Dreadnought at 70 seconds. Destroy
+- Sector 01: mixed encounters lead into the Dreadnought at 70 seconds. The boss
+  arrives on a timer rather than on a cleared screen, so its arrival fires a
+  shockwave that detonates the surviving enemies and pays out their points —
+  they are never silently deleted. Destroy
   its two cannons to expose the core; attacks change as parts fall. A staged
   destruction sequence ends in SECTOR CLEARED and the existing score entry flow.
   Roughly 90 seconds is the design target, not a forced timeout: finish time

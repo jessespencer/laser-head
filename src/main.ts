@@ -744,6 +744,20 @@ function showControlsScreen(onDone: () => void) {
           </div>
         </div>
 
+        <!-- P -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <p style="${labelStyle}">Pause</p>
+          <div style="
+            background: #1a1a2e;
+            border-radius: 14px;
+            padding: 10px;
+            display: inline-flex;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+          ">
+            <div style="${keyStyle}">P</div>
+          </div>
+        </div>
+
         <!-- ESC -->
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <p style="${labelStyle}">Quit</p>
