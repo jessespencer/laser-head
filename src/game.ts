@@ -42,6 +42,7 @@ import {
 import { createPlayer, updatePlayer, drawPlayer, getEyePositions } from "./player";
 import { spawnLaser, updateLasers, drawLasers, getLasers, clearLasers, spawnUltraLaser, updateUltraLasers, drawUltraLasers, getUltraLasers, clearUltraLasers } from "./laser";
 import {
+  setCombatAggression,
   spawnWave,
   spawnAttackTank,
   spawnRandomEnemy,
@@ -74,7 +75,8 @@ import {
   type LeaderboardEntry,
 } from "./leaderboard";
 import type { Player } from "./types";
-import { ULTRA_DURATION, ULTRA_FIRE_RATE, BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
+import { BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
+import { POWER_TIERS, applyPickup } from "./power";
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
@@ -156,7 +158,8 @@ export function startGame(
     gameOver: false,
     paused: false,
     frame: 0,
-    ultraTimer: 0,
+    powerTier: null,
+    powerTimer: 0,
   };
 
   fireRequested = false;
@@ -447,6 +450,8 @@ function updateGame() {
     }
   }
   const pace = combatPace(state.frame, state.difficulty);
+  // combatPace runs 1 -> 2.25; normalise it into the 0..1 aggression shooters read.
+  setCombatAggression((pace - 1) / 1.25);
   if (sector === 1 && !boss && randomRemaining > 0 && --randomTimer <= 0) {
     spawnRandomEnemy(state.difficulty, pace);
     randomRemaining--;
@@ -506,25 +511,35 @@ function updateGame() {
   // Power-up
   trySpawnPowerUp(state.difficulty);
   updatePowerUp(state.frame);
-  if (checkPowerUpCollision(player)) {
-    state.ultraTimer = ULTRA_DURATION;
+  const collected = checkPowerUpCollision(player);
+  if (collected) {
+    const next = applyPickup(state.powerTier, state.powerTimer, collected);
+    state.powerTier = next.tier;
+    state.powerTimer = next.timer;
     playSound("pickup");
+    chainNotices.push({x:player.x,y:player.y,life:90,text:`${POWER_TIERS[next.tier].label} ONLINE`});
   }
-  if (state.ultraTimer > 0) {
-    state.ultraTimer--;
+  if (state.powerTimer > 0) {
+    state.powerTimer--;
     player.firing = true;
+    if (state.powerTimer === 0) state.powerTier = null;
   }
 
   // Immediate first shot, then a steady stream while held. Ultra doubles cadence.
   if (shotCooldown > 0) shotCooldown--;
   if ((firing || fireRequested) && shotCooldown === 0) {
     const [leftEye, rightEye] = getEyePositions(player);
-    const spawn = state.ultraTimer > 0 ? spawnUltraLaser : spawnLaser;
-    playSound(state.ultraTimer > 0 ? "plasma" : "laser");
+    // Only plasma swaps the projectile; overdrive fires a hotter normal beam.
+    const plasma = state.powerTier === "plasma";
+    const hot = state.powerTier === "overdrive";
+    const spawn = plasma
+      ? (x: number, y: number, vy = 0) => spawnUltraLaser(x, y, vy)
+      : (x: number, y: number, vy = 0) => spawnLaser(x, y, vy, hot);
+    playSound(plasma ? "plasma" : "laser");
     spawn(leftEye.x, leftEye.y);
     spawn(rightEye.x, rightEye.y);
     if (spread) { spawn(leftEye.x,leftEye.y,-5);spawn(rightEye.x,rightEye.y,5); }
-    shotCooldown = state.ultraTimer > 0 ? ULTRA_FIRE_RATE : FIRE_RATE;
+    shotCooldown = state.powerTier ? POWER_TIERS[state.powerTier].fireRate : FIRE_RATE;
   }
   fireRequested = false;
   updateLasers();
@@ -667,7 +682,7 @@ function beginRefinery() {
   clearEnemies();clearEnemyShots();clearLasers();clearUltraLasers();clearPowerUp();
   clearParticles();clearBlastRings();
   state.lives=Math.min(8,state.lives+2);state.combo=0;state.multiplier=1;state.comboTimer=0;
-  damageImmunity=120;shotCooldown=0;waveBanner=0;state.ultraTimer=0;
+  damageImmunity=120;shotCooldown=0;waveBanner=0;state.powerTier=null;state.powerTimer=0;
   player.x=CANVAS_W*0.15;player.y=CANVAS_H/2;rememberPosition(player);
 }
 function hitFacilityShot(shot:{x:number;y:number}) {
@@ -725,7 +740,7 @@ function renderGame() {
   if (sector===2) drawRefineryBackground(ctx,sectorFrame,CANVAS_W,CANVAS_H);
   else drawStarfield(ctx);
   if (sector===2) drawFacilities(ctx,refinery);
-  drawPlayer(player, ctx, state.ultraTimer > 0);
+  drawPlayer(player, ctx, state.powerTier === "plasma");
   if (damageImmunity > 0) {
     ctx.save();
     ctx.strokeStyle = "#8ef";

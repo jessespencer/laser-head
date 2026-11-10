@@ -45,8 +45,10 @@ export function planWave(wave: number, random: () => number = Math.random) {
   const pattern: Pattern = (['swoop', 'split', 'dive'] as const)[(wave - 1) % 3];
   const count = Math.min(8, 5 + Math.floor((wave - 1) / 3));
   const lane = 0.35 + random() * 0.3;
+  // Shooters join the line from wave 3, and squadrons field a second one later.
+  const tanks = wave >= 6 ? 2 : wave >= 3 ? 1 : 0;
   return Array.from({ length: count }, (_, slot) => ({
-    kind: wave >= 4 && slot === count - 1 ? 'tank' as const :
+    kind: slot >= count - tanks ? 'tank' as const :
       wave >= 2 && slot % 3 === 0 ? 'drone' as const : 'scout' as const,
     flight: { pattern, age: -slot * 12, lane, slot, count, speed: Math.min(8, 5.5 + wave * 0.15) },
   }));

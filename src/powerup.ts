@@ -4,17 +4,21 @@ import {
   Player,
   CANVAS_W,
   CANVAS_H,
-  POWERUP_MIN_DIFFICULTY,
   POWERUP_COOLDOWN,
   POWERUP_CHANCE,
 } from "./types";
+import { POWER_TIERS, PowerTier, pickPowerTier } from "./power";
 
 const POWERUP_SIZE = 40;
 const POWERUP_SPEED = 1.5;
 
-// Preload the plasma-core pickup
-const plasmaImg = new Image();
-plasmaImg.src = "/laser-head/plasma-core.svg";
+// Preload one pickup sprite per tier.
+const tierImages = {} as Record<PowerTier, HTMLImageElement>;
+for (const def of Object.values(POWER_TIERS)) {
+  const img = new Image();
+  img.src = def.image;
+  tierImages[def.tier] = img;
+}
 
 let powerUp: PowerUp | null = null;
 let spawnCooldown = 0;
@@ -34,10 +38,12 @@ export function trySpawnPowerUp(difficulty: number) {
     return;
   }
   if (powerUp) return;
-  if (difficulty < POWERUP_MIN_DIFFICULTY) return;
   if (Math.random() > POWERUP_CHANCE) return;
+  const tier = pickPowerTier(difficulty, Math.random());
+  if (!tier) return;
 
   powerUp = {
+    tier,
     x: CANVAS_W + POWERUP_SIZE,
     y: POWERUP_SIZE + Math.random() * (CANVAS_H - POWERUP_SIZE * 2),
     size: POWERUP_SIZE,
@@ -62,23 +68,38 @@ export function drawPowerUp(ctx: CanvasRenderingContext2D, frame: number) {
   if (!powerUp) return;
   const p = powerUp;
 
+  const def = POWER_TIERS[p.tier];
+  const img = tierImages[p.tier];
+
   ctx.save();
   const pulse = 0.6 + Math.sin(frame * 0.08) * 0.4;
-  ctx.shadowColor = `rgba(80, 220, 255, ${pulse})`;
+  ctx.shadowColor = def.color;
   ctx.shadowBlur = 20 + pulse * 10;
 
-  if (plasmaImg.complete && plasmaImg.naturalWidth > 0) {
-    const aspect = plasmaImg.naturalWidth / plasmaImg.naturalHeight;
+  // Higher tiers wear an extra halo so their value reads at a glance.
+  if (def.rank > 1) {
+    ctx.strokeStyle = def.color;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.35 + pulse * 0.4;
+    ctx.beginPath();
+    ctx.arc(renderX(p), renderY(p), p.size * 0.78, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  if (img.complete && img.naturalWidth > 0) {
+    const aspect = img.naturalWidth / img.naturalHeight;
     const drawW = aspect >= 1 ? p.size : p.size * aspect;
     const drawH = aspect >= 1 ? p.size / aspect : p.size;
-    ctx.drawImage(plasmaImg, renderX(p) - drawW / 2, renderY(p) - drawH / 2, drawW, drawH);
+    ctx.drawImage(img, renderX(p) - drawW / 2, renderY(p) - drawH / 2, drawW, drawH);
   }
 
   ctx.restore();
 }
 
-export function checkPowerUpCollision(player: Player): boolean {
-  if (!powerUp) return false;
+/** Returns the collected tier, or null if nothing was picked up this frame. */
+export function checkPowerUpCollision(player: Player): PowerTier | null {
+  if (!powerUp) return null;
   const pw = player.width * 0.4;
   const ph = player.height * 0.4;
   const halfSize = powerUp.size * 0.4;
@@ -89,8 +110,9 @@ export function checkPowerUpCollision(player: Player): boolean {
     player.y - ph < powerUp.y + halfSize &&
     player.y + ph > powerUp.y - halfSize
   ) {
+    const tier = powerUp.tier;
     powerUp = null;
-    return true;
+    return tier;
   }
-  return false;
+  return null;
 }

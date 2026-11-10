@@ -12,10 +12,14 @@ let ultraLasers: Laser[] = [];
 
 const LASER_ANCHOR_X = 24; // laser origin maps here in sprite space
 const LASER_ANCHOR_Y = 24;
-let laserSprite: HTMLCanvasElement | null = null;
+const laserSprites: Record<"base" | "hot", HTMLCanvasElement | null> = { base: null, hot: null };
 
-function getLaserSprite(): HTMLCanvasElement {
-  if (laserSprite) return laserSprite;
+/** `hot` is the overdrive beam: same shape, brighter core and a longer glow,
+ * so the tier is readable from the shots alone. */
+function getLaserSprite(hot = false): HTMLCanvasElement {
+  const key = hot ? "hot" : "base";
+  const cached = laserSprites[key];
+  if (cached) return cached;
   const c = document.createElement("canvas");
   c.width = 64;
   c.height = 48;
@@ -26,37 +30,37 @@ function getLaserSprite(): HTMLCanvasElement {
   // Layer 1: outer glow
   const glowGrad = g.createLinearGradient(0, ay - 12, 0, ay + 12);
   glowGrad.addColorStop(0, "rgba(255,40,0,0)");
-  glowGrad.addColorStop(0.5, "rgba(255,40,0,0.3)");
+  glowGrad.addColorStop(0.5, hot ? "rgba(255,150,40,0.45)" : "rgba(255,40,0,0.3)");
   glowGrad.addColorStop(1, "rgba(255,40,0,0)");
   g.fillStyle = glowGrad;
-  g.fillRect(ax - 10, ay - 12, 30, 24);
+  g.fillRect(ax - 10, ay - 12, hot ? 36 : 30, 24);
 
   // Layer 2: mid beam (blurred)
   g.save();
-  g.strokeStyle = "rgba(255,80,20,0.7)";
-  g.lineWidth = 4;
-  g.shadowColor = "rgba(255,60,0,1)";
+  g.strokeStyle = hot ? "rgba(255,160,60,0.85)" : "rgba(255,80,20,0.7)";
+  g.lineWidth = hot ? 6 : 4;
+  g.shadowColor = hot ? "rgba(255,140,30,1)" : "rgba(255,60,0,1)";
   g.shadowBlur = 20;
   g.beginPath();
   g.moveTo(ax - 5, ay);
-  g.lineTo(ax + 20, ay);
+  g.lineTo(ax + (hot ? 24 : 20), ay);
   g.stroke();
   g.restore();
 
   // Layer 3: core (blurred)
   g.save();
-  g.strokeStyle = "rgba(255,200,180,0.95)";
-  g.lineWidth = 2;
-  g.shadowColor = "rgba(255,180,150,1)";
-  g.shadowBlur = 10;
+  g.strokeStyle = hot ? "rgba(255,246,225,1)" : "rgba(255,200,180,0.95)";
+  g.lineWidth = hot ? 3 : 2;
+  g.shadowColor = hot ? "rgba(255,230,190,1)" : "rgba(255,180,150,1)";
+  g.shadowBlur = hot ? 14 : 10;
   g.beginPath();
   g.moveTo(ax - 3, ay);
-  g.lineTo(ax + 18, ay);
+  g.lineTo(ax + (hot ? 22 : 18), ay);
   g.stroke();
   g.restore();
 
-  laserSprite = c;
-  return laserSprite;
+  laserSprites[key] = c;
+  return c;
 }
 
 export function getLasers(): Laser[] {
@@ -67,8 +71,8 @@ export function clearLasers() {
   lasers = [];
 }
 
-export function spawnLaser(x: number, y: number, vy = 0) {
-  lasers.push({ x, y, vy });
+export function spawnLaser(x: number, y: number, vy = 0, hot = false) {
+  lasers.push({ x, y, vy, hot });
 }
 
 export function updateLasers() {
@@ -84,10 +88,10 @@ export function updateLasers() {
 
 export function drawLasers(ctx: CanvasRenderingContext2D) {
   if (lasers.length === 0) return;
-  const sprite = getLaserSprite();
+  const base = getLaserSprite(false), hot = getLaserSprite(true);
   for (const l of lasers) {
     ctx.save();ctx.translate(renderX(l),renderY(l));ctx.rotate(Math.atan2(l.vy??0,LASER_SPEED));
-    ctx.drawImage(sprite,-LASER_ANCHOR_X,-LASER_ANCHOR_Y);ctx.restore();
+    ctx.drawImage(l.hot ? hot : base,-LASER_ANCHOR_X,-LASER_ANCHOR_Y);ctx.restore();
   }
 }
 

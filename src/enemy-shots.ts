@@ -1,10 +1,10 @@
 import { rememberPosition, renderX, renderY, shotHits } from './motion';
-import { CANVAS_W, CANVAS_H } from './types';
+import { CANVAS_W, CANVAS_H, ENEMY_SHOT_SPEED, MAX_ENEMY_SHOTS, PLAYER_HURT_FRACTION } from './types';
 const shots: {x:number; y:number; vx:number; vy:number; life:number}[] = [];
 export function clearEnemyShots() { shots.length = 0; }
-export function spawnEnemyShot(x:number, y:number, dx:number, dy:number) {
-  if (shots.length >= 80) return;
-  shots.push({x,y,vx:dx*13,vy:dy*13,life:240});
+export function spawnEnemyShot(x:number, y:number, dx:number, dy:number, speed = ENEMY_SHOT_SPEED) {
+  if (shots.length >= MAX_ENEMY_SHOTS) return;
+  shots.push({x,y,vx:dx*speed,vy:dy*speed,life:240});
 }
 export function updateEnemyShots() {
   for (let i=shots.length-1;i>=0;i--) {
@@ -14,7 +14,7 @@ export function updateEnemyShots() {
 }
 export function enemyShotHits(player:{x:number;y:number;width:number;height:number}) {
   for(let i=shots.length-1;i>=0;i--) {
-    if(shotHits(shots[i], player, player.width*0.25+5, player.height*0.25+5)) {
+    if(shotHits(shots[i], player, player.width*PLAYER_HURT_FRACTION+5, player.height*PLAYER_HURT_FRACTION+5)) {
       shots.splice(i,1); return true;
     }
   }

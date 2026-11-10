@@ -11,18 +11,25 @@ no software logos or assistant mascots in gameplay.
 - Hold-to-fire, swept projectile collisions, normalized diagonal movement.
 - Damage immunity, focus-loss pause, explicit resume, input reset.
 - Cached avatar tint, on-demand background removal, upload resource cleanup.
-- Alien scout, drone, tank, mine sprites and a plasma-core power-up.
+- Alien scout, drone, tank, mine sprites and tiered power-up cores (overdrive, plasma).
 - Formation milestone: staged swoop/split/dive squadrons, 5–8 aliens per wave,
   alternating with random raids and 0.75-second recovery gaps. Formation tanks
-  enter from the fourth formation. Enemy speed ramps with survival time and score.
+  enter from the third formation, and squadrons field a second from the sixth.
+  Enemy speed ramps with survival time and score.
 - Mines reduced from size 54 to 26, retaining their full blast radius; offered
   on occasional fourth waves with a twenty-second minimum gap and one opportunity at a time: 50% singles, 35% pairs, 15% triples.
-- Plasma has a slim cyan-white beam sprite with a modest thickness boost, cyan hit effects,
-  and a matching HUD bar; the existing doubled firing cadence is preserved.
+- Power-ups are a tier ladder defined in `power.ts`: Overdrive (rank 1, amber, restores the
+  pre-nerf 4-frame cadence and a brighter "hot" beam sprite) and Plasma (rank 2, cyan, 3-frame
+  cadence and cyan bolts). Tiers unlock by difficulty and drop by weight, so early runs only
+  ever see Overdrive. One slot is active at a time: a higher tier replaces, the same tier
+  refreshes, and a lower tier tops up the running timer rather than downgrading it. The HUD
+  bar takes its colour, label and trailing rank pips from the active tier.
 
-- Tanks fly in, brake, and execute one to three irregularly timed attacks before exiting.
+- Tanks fly in, brake, and execute two to seven irregularly timed attacks before exiting.
   Hunter and spreader variants have distinct cannons/fins and different pattern preferences;
-  attacks may be single shots, fans or short salvos.
+  attacks are usually short salvos, sometimes single shots or fans. Volley count, salvo
+  length, gap tightness and fan width all scale with how long the run has lasted
+  (`combatPace` normalised into the 0-1 aggression that `createTankAttack` reads).
   Attack tanks accompany formations from the second formation; random tanks also fire.
   Amber projectiles damage the player with the existing recovery shield. Aiming locks
   during the charge cue. Removed the plasma eye dots from the avatar.
@@ -32,7 +39,9 @@ no software logos or assistant mascots in gameplay.
   capped at depth five and multiplied by the current combo; floating text shows
   the awarded chain bonus. Overlapping blasts cannot rearm a mine or double-score it.
 - Tank charge cues share the exact aim directions used by their shots: one line
-  for aimed fire, three for the fan. Fast projectile speed and burst timing retained.
+  for aimed fire, three for the fan, five for a late-run spreader's wide fan.
+  Fast projectile speed and burst timing retained. The charge window itself never
+  shortens with difficulty — pressure rises, but every shot stays telegraphed.
 
 - Audio: synthesized laser/plasma fire, hits, explosions, combo pitch, pickups,
   damage, boss warning and victory. M toggles a persisted mute preference; focus
@@ -73,7 +82,7 @@ in `src/main.ts`. Still needs hands-on playtesting before it goes live.
   a refinery environment. Mounted turrets telegraph locked shots; fuel cells chain
   with delayed fuses, damage nearby defenses and airborne enemies, and leave wrecks.
 - Three authored supply carriers drop a persistent spread upgrade plus one shield
-  repair. Spread adds diagonal eye shots and also works during plasma overdrive.
+  repair. Spread adds diagonal eye shots and stacks with every power-up tier.
 - Mixed formations accompany alternating turret banks; spawning winds down at 65s.
   Helioforge arrives at 75s. Four orbiting cooling nodes protect its reactor; the
   exposed core begins a fresh telegraphed five-shot attack cycle.

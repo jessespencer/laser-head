@@ -1,4 +1,5 @@
-import { GameState, CANVAS_W, ULTRA_DURATION } from "./types";
+import { GameState, CANVAS_W } from "./types";
+import { POWER_TIERS } from "./power";
 
 export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {
   ctx.save();
@@ -17,27 +18,29 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {
     ctx.fill();
   }
 
-  // Ultra laser timer bar
-  if (state.ultraTimer > 0) {
+  // Active power-up tier: one bar, coloured and labelled by tier.
+  if (state.powerTier && state.powerTimer > 0) {
+    const def = POWER_TIERS[state.powerTier];
     const barW = 120;
     const barH = 8;
     const barX = 16;
     const barY = 68;
-    const fill = state.ultraTimer / ULTRA_DURATION;
+    const fill = Math.min(1, state.powerTimer / def.duration);
 
     ctx.fillStyle = "rgba(255,255,255,0.15)";
     ctx.fillRect(barX, barY, barW, barH);
 
-    ctx.fillStyle = "#67efff";
-    ctx.shadowColor = "rgba(60,220,255,0.8)";
+    ctx.fillStyle = def.color;
+    ctx.shadowColor = def.color;
     ctx.shadowBlur = 8;
     ctx.fillRect(barX, barY, barW * fill, barH);
     ctx.shadowBlur = 0;
 
+    // Trailing pips (one per rank) make the ladder legible mid-fight.
     ctx.font = "bold 10px 'Roboto Mono', monospace";
     ctx.fillStyle = "#fff";
     ctx.textAlign = "left";
-    ctx.fillText("PLASMA", barX + barW + 6, barY + 8);
+    ctx.fillText(`${def.label} ${"\u25b8".repeat(def.rank)}`, barX + barW + 6, barY + 8);
   }
 
   // Combo — top center
