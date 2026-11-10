@@ -23,11 +23,16 @@ no software logos or assistant mascots in gameplay.
   cadence and cyan bolts). Cores are hidden in wreckage rather than drifting in on a timer:
   `dropChance` pays out on tanks (35%) and drones (4%) only, so the reward tracks the risk and
   scouts — harmless and by far the most numerous — never turn drops into a lottery on the
-  safest kills. One core exists at a time, with a six-second floor between drops — deliberately
-  shorter than the briefest tier, so a core can land while a power is still running.
+  safest kills. One core exists at a time, with a six-second floor between drops; measured runs
+  show tank kills, not the cooldown, are what limit drops (~3 cores per run).
   Tiers unlock by difficulty and drop by weight, so your first core of a run is
-  usually the bottom rung; while a power is running the drop is instead the next
-  rung up, which is what makes the ladder something you climb rather than re-roll.
+  usually the bottom rung; after that each core offers the rung above the run's
+  high-water mark (`peakTier`), which is what makes the ladder something you
+  climb rather than re-roll. Keying that on the *running* power instead was
+  measurably wrong: instrumented 70s runs yield only ~8 tank kills, so a kill
+  almost never landed inside the seconds a power was still ticking and the top
+  tier went unseen. The high-water mark survives a power expiring, and the
+  sector transition clears the active power but deliberately not the peak.
   One slot is active at a time: a higher tier replaces, the same tier
   refreshes, and a lower tier tops up the running timer rather than downgrading it. The HUD
   bar takes its colour, label and trailing rank pips from the active tier.

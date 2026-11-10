@@ -67,24 +67,20 @@ test('drop chances stay probabilities', () => {
   }
 });
 
-test('a core offers the next rung up while a power is running', () => {
-  // The bug this guards: with overdrive running, a weighted re-roll mostly
-  // handed back another overdrive, so plasma almost never surfaced in a run.
+test('a core offers the next rung above the run\'s high-water mark', () => {
+  // The bug this guards: keyed on the *running* power, the top tier only
+  // appeared if a kill landed inside the few seconds a power was still
+  // ticking. Measured over full runs that window almost never caught one —
+  // two instrumented 70s runs produced 8 tank kills each and, in one, zero
+  // plasma. Keyed on the run's peak instead, the climb cannot be missed.
   for (const roll of [0, 0.25, 0.5, 0.75, 0.99]) {
     assert.equal(pickPowerTier(5, roll, 'overdrive'), 'plasma', `roll ${roll} climbs`);
   }
-  // Nothing running: the weights apply, so the first core is usually rung one.
+  // Nothing collected yet: the weights apply, so the first core is rung one.
   assert.equal(pickPowerTier(5, 0.1, null), 'overdrive');
-  // Already at the top: fall back to the weighted pick, which may top you up.
+  // Topped out: fall back to the weighted pick, which may top you up.
   assert.ok(['overdrive', 'plasma'].includes(pickPowerTier(5, 0.1, 'plasma')!));
-  // An unreachable rung is never offered just because something is running.
+  // An unreachable rung is never offered just because you peaked below it.
   assert.equal(pickPowerTier(1, 0.9, 'overdrive'), 'overdrive');
 });
 
-test('the drop cooldown cannot outlast the shortest power', async () => {
-  // If no drop can land while a power is running, the ladder rule above is
-  // unreachable and every core is rung one. Keep these two in step.
-  const { POWERUP_COOLDOWN } = await import('./types.ts');
-  const shortest = Math.min(...Object.values(POWER_TIERS).map(d => d.duration));
-  assert.ok(POWERUP_COOLDOWN < shortest, `cooldown ${POWERUP_COOLDOWN} < ${shortest}`);
-});

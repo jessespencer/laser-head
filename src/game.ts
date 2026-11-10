@@ -76,7 +76,7 @@ import {
 } from "./leaderboard";
 import type { Player } from "./types";
 import { BOMB_BLAST_RADIUS, BOMB_KILL_BONUS } from "./types";
-import { POWER_TIERS, applyPickup } from "./power";
+import { POWER_TIERS, applyPickup, tierRank } from "./power";
 
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
@@ -160,6 +160,7 @@ export function startGame(
     frame: 0,
     powerTier: null,
     powerTimer: 0,
+    peakTier: null,
   };
 
   fireRequested = false;
@@ -539,6 +540,9 @@ function updateGame() {
     const next = applyPickup(state.powerTier, state.powerTimer, collected);
     state.powerTier = next.tier;
     state.powerTimer = next.timer;
+    // High-water mark for the run: the next core offers the rung above this,
+    // whether or not this power is still running when that core drops.
+    if (tierRank(collected) > tierRank(state.peakTier)) state.peakTier = collected;
     playSound("pickup");
     chainNotices.push({x:player.x,y:player.y,life:90,text:`${POWER_TIERS[next.tier].label} ONLINE`});
   }
@@ -613,7 +617,7 @@ function updateGame() {
           recordKill(def.points, 1);
           // Cores are hidden in the wreckage: you find them by killing the
           // things that shoot back, not by waiting for one to drift past.
-          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.powerTier);
+          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.peakTier);
 
           removeEnemy(ei);
         }
@@ -651,7 +655,7 @@ function updateGame() {
           const def = ENEMY_TYPES[e.type];
           spawnExplosion(e.x, e.y, "#67efff");
           recordKill(def.points, 1);
-          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.powerTier);
+          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.peakTier);
           removeEnemy(ei);
         }
         break;
@@ -666,7 +670,7 @@ function updateGame() {
     const blast = resolveBlast(enemies, e, BOMB_BLAST_RADIUS);
     for (const victim of blast.victims) {
       spawnExplosion(victim.x, victim.y, ENEMY_TYPES[victim.type].color);
-      tryDropPowerUp(victim.x, victim.y, state.difficulty, victim.type, state.powerTier);
+      tryDropPowerUp(victim.x, victim.y, state.difficulty, victim.type, state.peakTier);
     }
     recordKill(ENEMY_TYPES.bomb.points + blast.victims.length * BOMB_KILL_BONUS + blast.bonus, 1 + blast.victims.length);
     if (blast.bonus > 0) {

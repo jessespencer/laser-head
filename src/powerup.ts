@@ -41,12 +41,12 @@ export function tryDropPowerUp(
   y: number,
   difficulty: number,
   enemyType: EnemyType,
-  active: PowerTier | null,
+  peak: PowerTier | null,
 ) {
   if (spawnCooldown > 0) return;
   if (powerUp) return;
   if (Math.random() > dropChance(enemyType)) return;
-  const tier = pickPowerTier(difficulty, Math.random(), active);
+  const tier = pickPowerTier(difficulty, Math.random(), peak);
   if (!tier) return;
 
   powerUp = {

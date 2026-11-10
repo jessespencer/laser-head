@@ -58,19 +58,23 @@ export function eligibleTiers(difficulty: number): PowerTierDef[] {
 /** Weighted pick among unlocked tiers. `roll` is 0..1. Null until the first
  * tier unlocks, so early waves stay unassisted.
  *
- * `active` is the power already running, if any. A core that only tops up what
- * you are already holding is a non-event, so while something is running the
- * drop is the next rung up — that is what makes this a ladder you climb rather
- * than a coin flip you re-toss. With nothing running the weights apply, so your
- * first core of a run is usually the bottom rung. */
+ * `peak` is the highest tier collected SO FAR THIS RUN, which is what makes
+ * this a ladder you climb: each core offers the next rung above your high-water
+ * mark, and the climb persists even after a power expires. Keying this on the
+ * currently-running power instead would make the rung you get depend on whether
+ * a kill happens to land inside the few seconds a power is still ticking —
+ * measured over full runs, that window almost never catches one, so the top
+ * tier effectively never appeared. Once you have topped out (or the next rung
+ * is still difficulty-locked) the weights apply, so your first core of a run
+ * is usually the bottom rung. */
 export function pickPowerTier(
   difficulty: number,
   roll: number,
-  active: PowerTier | null = null
+  peak: PowerTier | null = null
 ): PowerTier | null {
   const unlocked = eligibleTiers(difficulty);
   if (unlocked.length === 0) return null;
-  const above = unlocked.filter(d => d.rank > tierRank(active));
+  const above = unlocked.filter(d => d.rank > tierRank(peak));
   const tiers = above.length > 0 ? above : unlocked;
   const total = tiers.reduce((sum, d) => sum + d.weight, 0);
   let cursor = Math.max(0, Math.min(0.999999, roll)) * total;
