@@ -61,7 +61,7 @@ import {
   BANNER_LINE_HEIGHT,
   BANNER_COLOR,
 } from "./asciiTitle";
-import { trySpawnPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
+import { tryDropPowerUp, updatePowerUp, drawPowerUp, checkPowerUpCollision, clearPowerUp } from "./powerup";
 import {
   submitRun,
   qualifies,
@@ -220,8 +220,14 @@ function onKeyDown(e: KeyboardEvent) {
   if (e.repeat) return;
   unlockAudio();
   if (e.key.toLowerCase() === "m") { toggleSound(); return; }
+  // P toggles pause from either state. Esc isn't available for this — it
+  // already quits to the upload screen.
+  if (e.key.toLowerCase() === "p" && !state.gameOver) {
+    if (state.paused) resumeGame(); else pauseGame();
+    return;
+  }
   if (state.paused && !state.gameOver) {
-    if (e.key === "Enter") { state.paused = false; clock.reset(); pauseAudio(false); }
+    if (e.key === "Enter") resumeGame();
     if (e.key !== "Escape") return;
   }
   keys.add(e.key.toLowerCase());
@@ -289,6 +295,12 @@ function pauseGame() {
   fireRequested = false;
   clock.reset();
   if (!state.gameOver) state.paused = true;
+}
+
+function resumeGame() {
+  state.paused = false;
+  clock.reset();
+  pauseAudio(false);
 }
 
 function onVisibilityChange() {
@@ -405,7 +417,7 @@ function loop(now: number) {
     ctx.font = "bold 24px monospace";
     ctx.fillText("PAUSED", CANVAS_W / 2, CANVAS_H / 2);
     ctx.font = "16px monospace";
-    ctx.fillText("ENTER to resume", CANVAS_W / 2, CANVAS_H / 2 + 34);
+    ctx.fillText("ENTER or P to resume", CANVAS_W / 2, CANVAS_H / 2 + 34);
     ctx.restore();
   }
 }
@@ -432,6 +444,17 @@ function updateGame() {
   if (!boss && sectorFrame >= (sector === 1 ? BOSS_ARRIVAL_TICK : REFINERY_BOSS_TICK)) {
     boss = sector === 1 ? createBoss(CANVAS_W, CANVAS_H) : createRefineryBoss(CANVAS_W, CANVAS_H);
     refinery.units = [];
+    // The boss arrives on a timer, so there are usually enemies still alive.
+    // Its arrival shockwave detonates them rather than deleting them silently,
+    // and the player keeps the points they were already owed.
+    const caught = getEnemies();
+    if (caught.length > 0) {
+      for (const e of caught) spawnExplosion(e.x, e.y, ENEMY_TYPES[e.type].color);
+      recordKill(caught.reduce((sum, e) => sum + ENEMY_TYPES[e.type].points, 0), caught.length);
+      spawnBlastRing(boss.x, boss.y, CANVAS_W * 1.2);
+      triggerShake(30);
+      playSound("blast");
+    }
     clearEnemies(); clearEnemyShots();
     randomRemaining = 0; waveBanner = 0;
     playSound("warning");
@@ -508,8 +531,8 @@ function updateGame() {
   updateEnemies(state.frame, player);
   updateEnemyShots();
 
-  // Power-up
-  trySpawnPowerUp(state.difficulty);
+  // Power-up. Cores are dropped by dying enemies (see killEnemy); this only
+  // carries the one on the field and checks whether the player reached it.
   updatePowerUp(state.frame);
   const collected = checkPowerUpCollision(player);
   if (collected) {
@@ -588,6 +611,9 @@ function updateGame() {
           spawnExplosion(e.x, e.y, def.color);
 
           recordKill(def.points, 1);
+          // Cores are hidden in the wreckage: you find them by killing the
+          // things that shoot back, not by waiting for one to drift past.
+          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.powerTier);
 
           removeEnemy(ei);
         }
@@ -625,6 +651,7 @@ function updateGame() {
           const def = ENEMY_TYPES[e.type];
           spawnExplosion(e.x, e.y, "#67efff");
           recordKill(def.points, 1);
+          tryDropPowerUp(e.x, e.y, state.difficulty, e.type, state.powerTier);
           removeEnemy(ei);
         }
         break;
@@ -637,7 +664,10 @@ function updateGame() {
   for (const e of readyMines) {
     if (!enemies.includes(e)) continue;
     const blast = resolveBlast(enemies, e, BOMB_BLAST_RADIUS);
-    for (const victim of blast.victims) spawnExplosion(victim.x, victim.y, ENEMY_TYPES[victim.type].color);
+    for (const victim of blast.victims) {
+      spawnExplosion(victim.x, victim.y, ENEMY_TYPES[victim.type].color);
+      tryDropPowerUp(victim.x, victim.y, state.difficulty, victim.type, state.powerTier);
+    }
     recordKill(ENEMY_TYPES.bomb.points + blast.victims.length * BOMB_KILL_BONUS + blast.bonus, 1 + blast.victims.length);
     if (blast.bonus > 0) {
       chainNotices.push({x:e.x,y:e.y,life:70,text:`CHAIN +${blast.bonus * state.multiplier}`});

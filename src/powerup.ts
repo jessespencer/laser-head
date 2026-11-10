@@ -2,15 +2,16 @@ import { rememberPosition, renderX, renderY } from "./motion";
 import {
   PowerUp,
   Player,
-  CANVAS_W,
+  EnemyType,
   CANVAS_H,
   POWERUP_COOLDOWN,
-  POWERUP_CHANCE,
 } from "./types";
-import { POWER_TIERS, PowerTier, pickPowerTier } from "./power";
+import { POWER_TIERS, PowerTier, dropChance, pickPowerTier } from "./power";
 
 const POWERUP_SIZE = 40;
-const POWERUP_SPEED = 1.5;
+// Slower than the enemies that dropped it, so a core from a kill at the left
+// edge is still catchable instead of scrolling straight off.
+const POWERUP_DRIFT = 1.1;
 
 // Preload one pickup sprite per tier.
 const tierImages = {} as Record<PowerTier, HTMLImageElement>;
@@ -32,28 +33,38 @@ export function clearPowerUp() {
   spawnCooldown = 0;
 }
 
-export function trySpawnPowerUp(difficulty: number) {
-  if (spawnCooldown > 0) {
-    spawnCooldown--;
-    return;
-  }
+/** Called when an enemy is destroyed: it may leave a core behind at the wreck.
+ * Only one core exists at a time, and POWERUP_COOLDOWN keeps a hot streak from
+ * stacking them up. */
+export function tryDropPowerUp(
+  x: number,
+  y: number,
+  difficulty: number,
+  enemyType: EnemyType,
+  active: PowerTier | null,
+) {
+  if (spawnCooldown > 0) return;
   if (powerUp) return;
-  if (Math.random() > POWERUP_CHANCE) return;
-  const tier = pickPowerTier(difficulty, Math.random());
+  if (Math.random() > dropChance(enemyType)) return;
+  const tier = pickPowerTier(difficulty, Math.random(), active);
   if (!tier) return;
 
   powerUp = {
     tier,
-    x: CANVAS_W + POWERUP_SIZE,
-    y: POWERUP_SIZE + Math.random() * (CANVAS_H - POWERUP_SIZE * 2),
+    x,
+    // Nudge clear of the edges so the core doesn't hug the frame on its way out.
+    y: Math.max(POWERUP_SIZE, Math.min(CANVAS_H - POWERUP_SIZE, y)),
     size: POWERUP_SIZE,
     sineOffset: Math.random() * Math.PI * 2,
-    speed: POWERUP_SPEED,
+    speed: POWERUP_DRIFT,
   };
   spawnCooldown = POWERUP_COOLDOWN;
 }
 
 export function updatePowerUp(frame: number) {
+  // The cooldown ticks every frame now that drops are driven by kills rather
+  // than by this function being polled.
+  if (spawnCooldown > 0) spawnCooldown--;
   if (!powerUp) return;
   rememberPosition(powerUp);
   powerUp.x -= powerUp.speed;

@@ -48,8 +48,13 @@ export const BOMB_EYE_BLINK_DURATION = 6;
 export const BOMB_LIFETIME = 300;            // ~5 seconds then disappears
 export const BOMB_DROP_SPEED = 3;            // speed while dropping into position
 
-export const POWERUP_COOLDOWN = 1500; // frames (~25 seconds)
-export const POWERUP_CHANCE = 0.002;  // per frame when eligible
+// Cores drop from kills, not from a drift-in timer, so this is only a floor on
+// how close together two drops can land — a lucky run of tank kills shouldn't
+// hand out back-to-back cores. Which enemies carry one lives in power.ts.
+// Must stay BELOW the shortest tier duration (overdrive, 540): if no drop can
+// land while a power is running, pickPowerTier never gets to offer the next
+// rung up and the ladder collapses into a single tier.
+export const POWERUP_COOLDOWN = 360; // frames (~6 seconds) between drops
 
 // Colors
 export const BG_COLOR = "#05060f";

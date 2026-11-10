@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { POWER_TIERS, applyPickup, eligibleTiers, pickPowerTier, tierRank } from './power.ts';
+import { POWER_TIERS, applyPickup, dropChance, eligibleTiers, pickPowerTier, tierRank } from './power.ts';
 
 test('tiers form a strict ladder: higher rank fires faster', () => {
   const ladder = Object.values(POWER_TIERS).sort((a, b) => a.rank - b.rank);
@@ -50,3 +50,41 @@ test('base cadence outranks nothing', () => {
   assert.ok(tierRank('plasma') > tierRank('overdrive'));
 });
 
+test('only the enemies that shoot back carry cores', () => {
+  // Scouts are harmless and vastly outnumber everything else; if they dropped,
+  // most cores would come from the safest kills on the board.
+  assert.equal(dropChance('scout'), 0);
+  assert.equal(dropChance('bomb'), 0);
+  assert.ok(dropChance('tank') > dropChance('drone'), 'the dangerous kill pays best');
+  assert.ok(dropChance('drone') > 0, 'drones keep drops from being fully predictable');
+  assert.equal(dropChance('nonsense'), 0, 'unknown kinds never drop');
+});
+
+test('drop chances stay probabilities', () => {
+  for (const kind of ['scout', 'drone', 'tank', 'bomb']) {
+    const c = dropChance(kind);
+    assert.ok(c >= 0 && c <= 1, `${kind} chance in range`);
+  }
+});
+
+test('a core offers the next rung up while a power is running', () => {
+  // The bug this guards: with overdrive running, a weighted re-roll mostly
+  // handed back another overdrive, so plasma almost never surfaced in a run.
+  for (const roll of [0, 0.25, 0.5, 0.75, 0.99]) {
+    assert.equal(pickPowerTier(5, roll, 'overdrive'), 'plasma', `roll ${roll} climbs`);
+  }
+  // Nothing running: the weights apply, so the first core is usually rung one.
+  assert.equal(pickPowerTier(5, 0.1, null), 'overdrive');
+  // Already at the top: fall back to the weighted pick, which may top you up.
+  assert.ok(['overdrive', 'plasma'].includes(pickPowerTier(5, 0.1, 'plasma')!));
+  // An unreachable rung is never offered just because something is running.
+  assert.equal(pickPowerTier(1, 0.9, 'overdrive'), 'overdrive');
+});
+
+test('the drop cooldown cannot outlast the shortest power', async () => {
+  // If no drop can land while a power is running, the ladder rule above is
+  // unreachable and every core is rung one. Keep these two in step.
+  const { POWERUP_COOLDOWN } = await import('./types.ts');
+  const shortest = Math.min(...Object.values(POWER_TIERS).map(d => d.duration));
+  assert.ok(POWERUP_COOLDOWN < shortest, `cooldown ${POWERUP_COOLDOWN} < ${shortest}`);
+});
