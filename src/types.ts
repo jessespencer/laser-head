@@ -51,9 +51,8 @@ export const BOMB_DROP_SPEED = 3;            // speed while dropping into positi
 // Cores drop from kills, not from a drift-in timer, so this is only a floor on
 // how close together two drops can land — a lucky run of tank kills shouldn't
 // hand out back-to-back cores. Which enemies carry one lives in power.ts.
-// Must stay BELOW the shortest tier duration (overdrive, 540): if no drop can
-// land while a power is running, pickPowerTier never gets to offer the next
-// rung up and the ladder collapses into a single tier.
+// Not the binding constraint on how many cores you see: instrumented 70s runs
+// yield ~8 tank kills and ~3 cores, so tank scarcity sets the rate, not this.
 export const POWERUP_COOLDOWN = 360; // frames (~6 seconds) between drops
 
 // Colors
@@ -78,6 +77,9 @@ export interface GameState {
   /** Active power-up tier, or null at base cadence. */
   powerTier: PowerTier | null;
   powerTimer: number;
+  /** Highest tier collected this run. Drives the next rung a core offers, so
+   * the climb survives a power expiring. Resets only on a new run. */
+  peakTier: PowerTier | null;
 }
 
 export interface Player {
