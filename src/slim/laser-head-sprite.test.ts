@@ -54,7 +54,7 @@ describe("LH-1 the head is a function of the initials", () => {
 describe("LH-2 initials", () => {
   it("reads a name, then an email, then gives up gracefully", () => {
     assert.equal(initialsFor("Jesse Spencer", "j@x.com"), "JS");
-    assert.equal(initialsFor("", "jesse.spencer@dayforce.com"), "JS");
+    assert.equal(initialsFor("", "jesse.spencer@example.com"), "JS");
     // The @ is a separator like any other — same rule the side nav's avatar
     // uses, so the runner's tag matches the disc in the header.
     assert.equal(initialsFor("", "root@x"), "RX");
