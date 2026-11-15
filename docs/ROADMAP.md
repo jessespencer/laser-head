@@ -75,12 +75,37 @@ Game feel remains subject to playtesting.
    and the stage pacing from actual play. Add reduced-effects controls.
 2. **More content:** additional stages, bosses and weapon choices once the first
    stage's feel is approved.
-3. **Performance and replayability:** seeded stress scenes, frame-time measurements,
-   quality settings, then additional stages and weapons based on playtest results.
+3. **Performance and replayability:** quality settings, then additional stages and
+   weapons based on playtest results. The measuring half is in place (see below).
 
 Maintain the current fast pace while tuning patterns and difficulty. Do not
 raise speed indiscriminately as a substitute for interesting attacks. Keep
 performance changes tied to measurements as entity counts increase.
+
+## Measuring performance
+
+The simulation is separated from the browser (`src/sim.ts`) and seeded
+(`src/rng.ts`), so runs replay exactly. `pnpm bench` flies two seeded scenes
+headless: Sector 01 as shipped, and a "swarm" that floods the field far past
+anything a real run reaches (93 enemies, 120 enemy shots, 700 particles, plasma
+and spread forced on). `?bench=swarm` flies the same scene on screen with frame
+timings.
+
+Measured on an Apple-silicon laptop, Node 22, seed 1:
+
+| Scene | Mean tick | p99 tick |
+|-------|-----------|----------|
+| Sector 01 | 5 µs | 14 µs |
+| Swarm | 90 µs | 360 µs |
+
+A 60 Hz frame is 16,700 µs, so the rules use well under 1% of it even at swarm
+density. The one hotspot the profile showed, the swept collision test
+allocating on every call, is fixed (swarm tick 109 µs to 90 µs, garbage
+collections down by about two thirds). Further simulation tuning is not worth
+doing; if frames are ever dropped, the cost is in drawing, and the on-screen
+bench is the tool for finding it. Draw cost has had one short on-screen sample
+only (no slow frames at 120 Hz while the swarm built up) and still needs a
+proper run at full density on a slower machine.
 
 ## Sector 02 — Helioforge refinery prototype
 

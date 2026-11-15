@@ -10,6 +10,9 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": true,
+    // Type-only imports must say so. Node runs the tests by stripping types,
+    // and a type imported as a value is a missing export at runtime.
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true

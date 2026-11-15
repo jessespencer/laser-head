@@ -1,4 +1,4 @@
-import { GameState, CANVAS_W } from "./types";
+import { type GameState, CANVAS_W } from "./types";
 import { POWER_TIERS } from "./power";
 
 export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState) {

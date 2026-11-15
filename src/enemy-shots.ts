@@ -2,6 +2,7 @@ import { rememberPosition, renderX, renderY, shotHits } from './motion';
 import { CANVAS_W, CANVAS_H, ENEMY_SHOT_SPEED, MAX_ENEMY_SHOTS, PLAYER_HURT_FRACTION } from './types';
 const shots: {x:number; y:number; vx:number; vy:number; life:number}[] = [];
 export function clearEnemyShots() { shots.length = 0; }
+export function enemyShotCount() { return shots.length; }
 export function spawnEnemyShot(x:number, y:number, dx:number, dy:number, speed = ENEMY_SHOT_SPEED) {
   if (shots.length >= MAX_ENEMY_SHOTS) return;
   shots.push({x,y,vx:dx*speed,vy:dy*speed,life:240});

@@ -1,5 +1,5 @@
 import { rememberPosition, renderX, renderY } from "./motion";
-import { Laser, LASER_SPEED, CANVAS_W, CANVAS_H } from "./types";
+import { type Laser, LASER_SPEED, CANVAS_W, CANVAS_H } from "./types";
 
 let lasers: Laser[] = [];
 let ultraLasers: Laser[] = [];

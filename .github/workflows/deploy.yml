@@ -34,6 +34,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # A failing test stops the deploy.
+      - run: pnpm test
+
       - run: pnpm build
 
       - uses: actions/configure-pages@v5
