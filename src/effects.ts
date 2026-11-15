@@ -1,5 +1,6 @@
 import { rememberPosition, renderX, renderY } from "./motion";
-import { Star, Particle, CANVAS_W, CANVAS_H } from "./types";
+import { fxRandom } from "./rng";
+import { type Star, type Particle, CANVAS_W, CANVAS_H } from "./types";
 
 // --- Starfield ---
 
@@ -19,8 +20,8 @@ export function initStarfield() {
     const count = Math.round(layer.count * areaFactor);
     for (let i = 0; i < count; i++) {
       stars.push({
-        x: Math.random() * CANVAS_W,
-        y: Math.random() * CANVAS_H,
+        x: fxRandom() * CANVAS_W,
+        y: fxRandom() * CANVAS_H,
         speed: layer.speed,
         size: layer.size,
         alpha: layer.alpha,
@@ -35,7 +36,7 @@ export function updateStarfield() {
     s.x -= s.speed * 2.4;
     if (s.x < 0) {
       s.x = CANVAS_W;
-      s.y = Math.random() * CANVAS_H;
+      s.y = fxRandom() * CANVAS_H;
       rememberPosition(s);
     }
   }
@@ -79,7 +80,7 @@ export function spawnExplosion(x: number, y: number, color: string) {
   // 8 radial particles
   for (let i = 0; i < 8; i++) {
     const angle = (Math.PI * 2 * i) / 8;
-    const speed = 2 + Math.random() * 3;
+    const speed = 2 + fxRandom() * 3;
     particles.push({
       x,
       y,
@@ -87,7 +88,7 @@ export function spawnExplosion(x: number, y: number, color: string) {
       vy: Math.sin(angle) * speed,
       alpha: 1,
       color,
-      size: 3 + Math.random() * 3,
+      size: 3 + fxRandom() * 3,
     });
   }
   // Central flash
@@ -134,6 +135,10 @@ export function drawParticles(ctx: CanvasRenderingContext2D) {
   ctx.globalAlpha = 1;
 }
 
+export function particleCount(): number {
+  return particles.length;
+}
+
 export function clearParticles() {
   particles = [];
 }
@@ -142,41 +147,41 @@ export function spawnBombExplosion(x: number, y: number) {
   const colors = ["#f44", "#f80", "#ff0", "#fa0", "#f22", "#ff4", "#fff"];
   // Outer ring — fast, wide spread
   for (let i = 0; i < 40; i++) {
-    const angle = (Math.PI * 2 * i) / 40 + (Math.random() - 0.5) * 0.2;
-    const speed = 5 + Math.random() * 8;
+    const angle = (Math.PI * 2 * i) / 40 + (fxRandom() - 0.5) * 0.2;
+    const speed = 5 + fxRandom() * 8;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       alpha: 1,
       color: colors[i % colors.length],
-      size: 5 + Math.random() * 8,
+      size: 5 + fxRandom() * 8,
     });
   }
   // Mid ring — medium speed
   for (let i = 0; i < 20; i++) {
     const angle = (Math.PI * 2 * i) / 20 + 0.1;
-    const speed = 2 + Math.random() * 4;
+    const speed = 2 + fxRandom() * 4;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       alpha: 1,
       color: "#fff",
-      size: 6 + Math.random() * 6,
+      size: 6 + fxRandom() * 6,
     });
   }
   // Inner cluster — slow, big, bright
   for (let i = 0; i < 10; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * 2;
+    const angle = fxRandom() * Math.PI * 2;
+    const speed = fxRandom() * 2;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       alpha: 1,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      size: 8 + Math.random() * 10,
+      color: colors[Math.floor(fxRandom() * colors.length)],
+      size: 8 + fxRandom() * 10,
     });
   }
   // Massive central flash
@@ -247,8 +252,8 @@ export function triggerShake(frames = 15) {
 export function updateShake() {
   if (shakeFrames > 0) {
     const intensity = shakeFrames / shakeDuration;
-    shakeX = (Math.random() - 0.5) * 14 * intensity;
-    shakeY = (Math.random() - 0.5) * 14 * intensity;
+    shakeX = (fxRandom() - 0.5) * 14 * intensity;
+    shakeY = (fxRandom() - 0.5) * 14 * intensity;
     shakeFrames--;
   } else {
     shakeX = 0;

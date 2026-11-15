@@ -41,7 +41,8 @@ pnpm install
 pnpm run dev      # http://localhost:5173/laser-head/
 pnpm run build    # Production build to dist/ (both pages)
 pnpm run preview  # Serve production build
-pnpm test         # The slim package's rules (35 assertions, bare Node)
+pnpm test         # Game rules and the slim package, on bare Node
+pnpm bench        # Cost of a simulation tick on the seeded stress scenes
 ```
 
 ## Controls
@@ -52,6 +53,23 @@ pnpm test         # The slim package's rules (35 assertions, bare Node)
 | Spacebar | Fire lasers |
 | P | Pause / resume (Enter also resumes) |
 | ESC | Quit to menu |
+
+## Tests and benchmarks
+
+The rules run without a browser. `src/sim.ts` is one fixed 60 Hz tick of the
+game and touches no canvas, keyboard or clock; `src/game.ts` is the browser
+shell that drives it. Every random draw goes through `src/rng.ts`, so a seeded
+run replays exactly.
+
+- `pnpm test` runs the suite on Node's own type stripping; there is no test
+  framework to install.
+- `pnpm bench [seed]` flies two seeded scenes headless and prints the cost of a
+  simulation tick, peak entity counts, and a digest of the run. A change that
+  is meant to be behaviour-neutral should leave the digests unchanged.
+- `?bench=swarm` (or `?bench=sector1`, optionally `&seed=3`) on the dev server
+  flies the same scene on screen with live frame timings; the full report is
+  `window.__laserHeadBench()` in the console. Nothing a bench plays reaches the
+  leaderboard.
 
 ---
 

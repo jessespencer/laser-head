@@ -1,5 +1,5 @@
 import { rememberPosition, renderX, renderY } from "./motion";
-import { Player, CANVAS_W, CANVAS_H, PLAYER_SPEED, PLAYER_SIZE } from "./types";
+import { type Player, CANVAS_W, CANVAS_H, PLAYER_SPEED, PLAYER_SIZE } from "./types";
 
 let tintSprite: HTMLCanvasElement | null = null;
 let tintImage: HTMLImageElement | null = null;

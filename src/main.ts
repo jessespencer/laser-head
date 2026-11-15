@@ -1,4 +1,5 @@
 import { startGame } from "./game";
+import { isSceneName } from "./stress";
 import { PLAYER_SIZE } from "./types";
 import {
   getPlayerToken,
@@ -820,5 +821,24 @@ function launchGame() {
   );
 }
 
+// ?bench=<scene>[&seed=n] skips the menus and flies a seeded scene with frame
+// timings on screen (see stress.ts). A development aid; nothing it plays is
+// submitted to the leaderboard.
+function bootBench(): boolean {
+  const params = new URLSearchParams(location.search);
+  const name = params.get("bench");
+  if (!isSceneName(name)) return false;
+  const seed = Number(params.get("seed") ?? 1) || 1;
+  const img = new Image();
+  img.onload = () => {
+    uploadScreen.style.display = "none";
+    canvas.style.display = "block";
+    const start = () => startGame(img, start, start, 1, { name, seed });
+    start();
+  };
+  img.src = `${import.meta.env.BASE_URL}default-head.png`;
+  return true;
+}
+
 // Boot
-showUploadScreen();
+if (!bootBench()) showUploadScreen();
